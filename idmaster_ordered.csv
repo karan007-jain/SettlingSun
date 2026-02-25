@@ -1,0 +1,2 @@
+psql: warning: extra command-line argument "IdMaster\ ORDER BY CASE WHEN \uplineId\ IS NULL THEN 0 ELSE 1 END, \createdAt\) TO STDOUT WITH CSV HEADER" ignored
+\copy: parse error at end of line

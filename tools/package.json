@@ -1,0 +1,20 @@
+{
+  "name": "dbf-sync-tool",
+  "version": "1.0.0",
+  "description": "DBF to PostgreSQL sync tool for SettlingSun",
+  "main": "dbf-sync.js",
+  "scripts": {
+    "sync:party": "node dbf-sync.js sync party",
+    "sync:exch": "node dbf-sync.js sync exch",
+    "sync:idmaster": "node dbf-sync.js sync idmaster",
+    "validate:party": "node dbf-sync.js validate party",
+    "validate:exch": "node dbf-sync.js validate exch",
+    "status": "node dbf-sync.js status"
+  },
+  "dependencies": {
+    "dbffile": "^1.12.0",
+    "axios": "^1.6.0",
+    "commander": "^11.1.0",
+    "dotenv": "^16.0.0"
+  }
+}

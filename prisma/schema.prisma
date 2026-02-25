@@ -1,0 +1,173 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  USER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PartyMaster {
+  partyCode String   @id @db.VarChar(6)
+  partyName String   @db.VarChar(30)
+  ref       String?  @db.VarChar(20)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  exchAsParty   Exch[]     @relation("PartyCodeRelation")
+  exchAsIdAc    Exch[]     @relation("IdAcRelation")
+  idMasters     IdMaster[] @relation("IdMasterPartyCode")
+  partnerMasters IdMaster[] @relation("IdMasterPartner")
+}
+
+model Exch {
+  id        String   @id @default(cuid())
+  idName    String   @unique @db.VarChar(20)
+  partyCode String   @db.VarChar(6)
+  shortCode String   @unique @db.VarChar(8)
+  rate      Decimal  @db.Decimal(8, 2)
+  idComm    Decimal  @db.Decimal(8, 2)
+  idAc      String   @db.VarChar(10)
+  currency  String   @default("PAISA") @db.VarChar(5)
+  template  String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  party       PartyMaster @relation("PartyCodeRelation", fields: [partyCode], references: [partyCode])
+  idAcParty   PartyMaster @relation("IdAcRelation", fields: [idAc], references: [partyCode])
+  idMasters   IdMaster[]  @relation("IdMasterIdCode")
+
+  @@index([partyCode])
+  @@index([idAc])
+}
+
+model IdMaster {
+  id         String   @id @default(cuid())
+  userId     String   @unique @db.VarChar(15)
+  partyCode  String   @db.VarChar(6)
+  idCode     String   @db.VarChar(20)
+  credit     Decimal  @default(0) @db.Decimal(10, 2)
+  comm       Decimal  @db.Decimal(8, 2)
+  rate       Decimal  @db.Decimal(8, 2)
+  pati       Decimal? @db.Decimal(10, 2)
+  partner    String?  @db.VarChar(6)
+  active     Boolean  @default(true)
+  isUpline   Boolean  @default(false)
+  uplineId   String?  @db.VarChar(15)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  party          PartyMaster  @relation("IdMasterPartyCode", fields: [partyCode], references: [partyCode])
+  exch           Exch         @relation("IdMasterIdCode", fields: [idCode], references: [idName])
+  partnerParty   PartyMaster? @relation("IdMasterPartner", fields: [partner], references: [partyCode])
+  upline            IdMaster?          @relation("UplineRelation", fields: [uplineId], references: [userId])
+  downlines         IdMaster[]         @relation("UplineRelation")
+  settlementRecords SettlementRecord[]
+
+  @@index([partyCode])
+  @@index([idCode])
+  @@index([partner])
+  @@index([uplineId])
+}
+
+model FormatConfig {
+  id        String   @id @default(cuid())
+  filecode  String   @unique
+  formatter String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Settlement {
+  id        String   @id @default(cuid())
+  settleId  String   @unique
+  createdAt DateTime @default(now())
+  status    String   @default("active")
+  uploads   SettlementUpload[]
+  records   SettlementRecord[]
+}
+
+model SettlementRecord {
+  id           String           @id @default(cuid())
+  settlementId String
+  settlement   Settlement       @relation(fields: [settlementId], references: [id])
+  uploadId     String
+  upload       SettlementUpload @relation(fields: [uploadId], references: [id])
+  settleId     String
+  userId       String           @db.VarChar(15)
+  idMaster     IdMaster         @relation(fields: [userId], references: [userId])
+
+  // Calculated DBF fields
+  week         Int              @default(0)
+  sodaType     String           @default("2") @db.VarChar(1)
+  pcode        String           @db.VarChar(6)
+  date         DateTime
+  idName       String           @db.VarChar(20)
+  idShort      String           @db.VarChar(8)
+  idPcode      String           @db.VarChar(6)
+  idRate       Decimal          @db.Decimal(8, 2)
+  idComm       Decimal          @db.Decimal(8, 2)
+  commission   Decimal          @db.Decimal(8, 2)
+  rate         Decimal          @db.Decimal(8, 2)
+  pati         Decimal          @default(0) @db.Decimal(10, 2)
+  partner      String           @default("") @db.VarChar(6)
+  point        Decimal          @db.Decimal(12, 2)
+  amtGross     Decimal          @db.Decimal(12, 2)
+  amtComm      Decimal          @db.Decimal(12, 2)
+  amtPati      Decimal          @db.Decimal(12, 2)
+  amount       Decimal          @db.Decimal(12, 2)
+  adrCr        String           @default("C") @db.VarChar(1)
+  upline       String           @db.VarChar(15)
+  tally        Boolean          @default(false)
+  diffAmt      Decimal          @default(0) @db.Decimal(10, 2)
+  createdAt    DateTime         @default(now())
+
+  @@index([settlementId])
+  @@index([uploadId])
+  @@index([settleId])
+  @@index([userId])
+  @@index([upline])
+}
+
+model SettlementUpload {
+  id           String     @id @default(cuid())
+  settlementId String
+  settlement   Settlement @relation(fields: [settlementId], references: [id])
+  settleId     String
+  exch         String
+  upline       String
+  filename     String
+  filepath     String
+  uploadedAt   DateTime   @default(now())
+  status       String     @default("uploaded")
+  recordCount  Int?
+  errorMsg     String?
+  processedAt  DateTime?
+
+  records      SettlementRecord[]
+
+  @@index([settlementId])
+  @@index([settleId])
+}
