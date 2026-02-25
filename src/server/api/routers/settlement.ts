@@ -17,6 +17,19 @@ export const settlementRouter = createTRPCRouter({
         uploads: {
           orderBy: { uploadedAt: "desc" },
           take: 5,
+          select: {
+            id: true,
+            settleId: true,
+            exch: true,
+            upline: true,
+            filename: true,
+            status: true,
+            uploadedAt: true,
+            recordCount: true,
+            errorMsg: true,
+            processedAt: true,
+            settlementId: true,
+          },
         },
         _count: { select: { uploads: true } },
       },
@@ -29,7 +42,22 @@ export const settlementRouter = createTRPCRouter({
       return await ctx.prisma.settlement.findUnique({
         where: { settleId: input.settleId },
         include: {
-          uploads: { orderBy: { uploadedAt: "desc" } },
+          uploads: {
+            orderBy: { uploadedAt: "desc" },
+            select: {
+              id: true,
+              settleId: true,
+              exch: true,
+              upline: true,
+              filename: true,
+              status: true,
+              uploadedAt: true,
+              recordCount: true,
+              errorMsg: true,
+              processedAt: true,
+              settlementId: true,
+            },
+          },
         },
       });
     }),
@@ -40,6 +68,19 @@ export const settlementRouter = createTRPCRouter({
       return await ctx.prisma.settlementUpload.findMany({
         where: { settleId: input.settleId },
         orderBy: { uploadedAt: "desc" },
+        select: {
+          id: true,
+          settleId: true,
+          exch: true,
+          upline: true,
+          filename: true,
+          status: true,
+          uploadedAt: true,
+          recordCount: true,
+          errorMsg: true,
+          processedAt: true,
+          settlementId: true,
+        },
       });
     }),
 

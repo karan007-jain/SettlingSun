@@ -51,11 +51,11 @@ export default function DashboardPage() {
       {/* Welcome */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
+        <div className="text-muted-foreground mt-1 flex items-center flex-wrap gap-1.5">
           Welcome back,{" "}
           <span className="font-medium text-foreground">{session?.user?.email}</span>
-          <Badge variant="secondary" className="ml-2 text-xs">{session?.user?.role}</Badge>
-        </p>
+          <Badge variant="secondary" className="text-xs">{session?.user?.role}</Badge>
+        </div>
       </div>
 
       {/* Stats */}
