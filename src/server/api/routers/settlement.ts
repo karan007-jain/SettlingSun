@@ -2,6 +2,17 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 
 export const settlementRouter = createTRPCRouter({
+  dashboardCounts: protectedProcedure.query(async ({ ctx }) => {
+    const [parties, exchanges, idMasters, settlements, users] = await Promise.all([
+      ctx.prisma.partyMaster.count(),
+      ctx.prisma.exch.count(),
+      ctx.prisma.idMaster.count(),
+      ctx.prisma.settlement.count(),
+      ctx.prisma.user.count(),
+    ]);
+    return { parties, exchanges, idMasters, settlements, users };
+  }),
+
   create: protectedProcedure
     .input(z.object({ settleId: z.string().min(1).toUpperCase() }))
     .mutation(async ({ ctx, input }) => {

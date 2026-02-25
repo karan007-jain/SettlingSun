@@ -81,13 +81,20 @@ export const configRouter = createTRPCRouter({
     }),
 
   // Upline codes from IdMaster (isUpline = true)
-  getUplines: protectedProcedure.query(async ({ ctx }) => {
-    return await ctx.prisma.idMaster.findMany({
-      where: { isUpline: true },
-      select: { userId: true, idCode: true },
-      orderBy: { userId: "asc" },
-    });
-  }),
+  getUplines: protectedProcedure
+    .input(z.object({ search: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const search = input?.search?.trim();
+      return await ctx.prisma.idMaster.findMany({
+        where: {
+          isUpline: true,
+          ...(search ? { userId: { contains: search, mode: "insensitive" } } : {}),
+        },
+        select: { userId: true, idCode: true },
+        orderBy: { userId: "asc" },
+        take: 50,
+      });
+    }),
 
   // FormatConfig filecodes as autocomplete for upline input
   getFormatFilecodes: protectedProcedure.query(async ({ ctx }) => {

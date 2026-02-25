@@ -40,11 +40,8 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
 
-  const { data: partyData, isLoading: partyLoading } = api.partyMaster.getList.useQuery({ page: 1, pageSize: 1 });
-  const { data: exchData, isLoading: exchLoading } = api.exch.getList.useQuery({ page: 1, pageSize: 1 });
-  const { data: idData, isLoading: idLoading } = api.idMaster.getList.useQuery({ page: 1, pageSize: 1 });
-  const { data: settlements = [], isLoading: settlementsLoading } = api.settlement.list.useQuery();
-  const { data: users = [], isLoading: usersLoading } = isAdmin ? api.user.getAll.useQuery() : { data: [], isLoading: false };
+  // Single query — 5 COUNT(*) in parallel, no rows fetched
+  const { data: counts, isLoading } = api.settlement.dashboardCounts.useQuery();
 
   return (
     <div className="space-y-8">
@@ -60,12 +57,12 @@ export default function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard title="Settlements" count={(settlements as any[]).length} loading={settlementsLoading} icon={FileText} color="text-sky-500" />
-        <StatCard title="Parties" count={partyData?.total} loading={partyLoading} icon={Building2} color="text-blue-500" />
-        <StatCard title="Exchanges" count={exchData?.total} loading={exchLoading} icon={ArrowUpDown} color="text-green-500" />
-        <StatCard title="ID Masters" count={idData?.total} loading={idLoading} icon={IdCard} color="text-purple-500" />
+        <StatCard title="Settlements" count={counts?.settlements} loading={isLoading} icon={FileText} color="text-sky-500" />
+        <StatCard title="Parties" count={counts?.parties} loading={isLoading} icon={Building2} color="text-blue-500" />
+        <StatCard title="Exchanges" count={counts?.exchanges} loading={isLoading} icon={ArrowUpDown} color="text-green-500" />
+        <StatCard title="ID Masters" count={counts?.idMasters} loading={isLoading} icon={IdCard} color="text-purple-500" />
         {isAdmin && (
-          <StatCard title="Users" count={(users as any[]).length} loading={usersLoading} icon={Users} color="text-orange-500" />
+          <StatCard title="Users" count={counts?.users} loading={isLoading} icon={Users} color="text-orange-500" />
         )}
       </div>
 

@@ -4,6 +4,21 @@ import { useState, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown, Upload, ArrowLeft, FileText, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type Step = 1 | 2;
 
@@ -14,12 +29,13 @@ export default function UploadPage() {
   const [step, setStep] = useState<Step>(1);
   const [stepError, setStepError] = useState("");
 
-  // Step 1 — UPLINE
+  // Step 1 — UPLINE combobox
   const [upline, setUpline] = useState("");
-  const [exch, setExch] = useState(""); // derived from selected upline's idCode
+  const [exch, setExch] = useState("");
   const [uplineSearch, setUplineSearch] = useState("");
-  const [showUplineSuggestions, setShowUplineSuggestions] = useState(false);
-  const { data: uplineList } = api.config.getUplines.useQuery();
+  const [comboOpen, setComboOpen] = useState(false);
+  const { data: uplineList = [], isFetching: uplineLoading } =
+    api.config.getUplines.useQuery({ search: uplineSearch });
 
   // Step 2 — File
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -27,10 +43,6 @@ export default function UploadPage() {
   const [uploadError, setUploadError] = useState("");
   const [doneUploadId, setDoneUploadId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const uplineSuggestions = (uplineList ?? []).filter((u) =>
-    u.userId.toLowerCase().includes(uplineSearch.toLowerCase())
-  );
 
   const handleUpload = useCallback(async () => {
     if (!selectedFile) { setUploadError("Please select a file"); return; }
@@ -53,205 +65,230 @@ export default function UploadPage() {
     }
   }, [selectedFile, settleId, exch, upline]);
 
-  const stepLabels = ["UPLINE", "Upload"];
+  const stepLabels = ["Select Upline", "Upload File"];
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 mb-4 text-sm">
-        <Link href="/settlements" className="text-blue-600 hover:underline">Settlements</Link>
-        <span className="text-gray-400">/</span>
-        <Link href={`/settlements/${settleId}`} className="text-blue-600 hover:underline">{settleId}</Link>
-        <span className="text-gray-400">/</span>
-        <span className="text-gray-700 font-medium">Upload File</span>
+      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Link href="/settlements" className="hover:text-foreground transition-colors">Settlements</Link>
+        <span>/</span>
+        <Link href={`/settlements/${settleId}`} className="hover:text-foreground transition-colors">{settleId}</Link>
+        <span>/</span>
+        <span className="text-foreground font-medium">Upload File</span>
       </div>
 
-      <h1 className="text-xl font-bold text-gray-900 mb-5">Upload File</h1>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Upload File</h1>
+        <p className="text-muted-foreground text-sm mt-1">Select an upline then upload a statement file.</p>
+      </div>
 
       {/* Step indicator */}
-      <div className="flex items-center mb-8">
+      <div className="flex items-center gap-2">
         {stepLabels.map((label, i) => {
           const sn = (i + 1) as Step;
           const isDone = !!doneUploadId || step > sn;
           const isCurrent = !doneUploadId && step === sn;
           return (
             <div key={label} className="flex items-center">
-              <div className={`flex items-center gap-2 ${isDone || isCurrent ? "" : "opacity-40"}`}>
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                  isDone ? "bg-green-500 text-white" : isCurrent ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
-                }`}>
-                  {isDone ? "✓" : sn}
+              <div className={cn("flex items-center gap-2", !isDone && !isCurrent && "opacity-40")}>
+                <div className={cn(
+                  "w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold",
+                  isDone ? "bg-green-500 text-white" : isCurrent ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                )}>
+                  {isDone ? <Check className="h-4 w-4" /> : sn}
                 </div>
-                <span className={`text-sm hidden sm:block ${isCurrent ? "font-semibold text-blue-700" : "text-gray-500"}`}>
+                <span className={cn("text-sm hidden sm:block", isCurrent ? "font-semibold" : "text-muted-foreground")}>
                   {label}
                 </span>
               </div>
               {i < stepLabels.length - 1 && (
-                <div className={`h-0.5 w-8 mx-2 ${isDone ? "bg-green-400" : "bg-gray-200"}`} />
+                <div className={cn("h-0.5 w-8 mx-2", isDone ? "bg-green-400" : "bg-border")} />
               )}
             </div>
           );
         })}
       </div>
 
-      <div className="bg-white border rounded-xl p-6 max-w-xl">
+      <Card className="max-w-xl">
+        <CardContent className="pt-6">
 
-        {/* ── Upload done ── */}
-        {doneUploadId && (
-          <div className="text-center py-6 space-y-4">
-            <div className="text-4xl">✅</div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">File uploaded!</h2>
-              <p className="text-gray-500 text-sm mt-1">
-                <strong>{selectedFile?.name}</strong> saved for upline{" "}
-                <strong>{upline}</strong>
-                {exch && <> · exchange <strong>{exch}</strong></>}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3 justify-center pt-2">
-              <Link
-                href={`/settlements/${settleId}/process/${doneUploadId}`}
-                className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
-              >
-                Process Now →
-              </Link>
-              <button
-                onClick={() => {
+          {/* ── Done ── */}
+          {doneUploadId && (
+            <div className="text-center py-4 space-y-4">
+              <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
+              <div>
+                <h2 className="text-lg font-bold">File uploaded!</h2>
+                <p className="text-muted-foreground text-sm mt-1">
+                  <strong>{selectedFile?.name}</strong> saved for upline <strong>{upline}</strong>
+                  {exch && <> · exchange <strong>{exch}</strong></>}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3 justify-center pt-2">
+                <Button asChild>
+                  <Link href={`/settlements/${settleId}/process/${doneUploadId}`}>
+                    Process Now
+                  </Link>
+                </Button>
+                <Button variant="outline" onClick={() => {
                   setDoneUploadId(null); setStep(1);
                   setUpline(""); setUplineSearch(""); setExch("");
                   setSelectedFile(null);
-                }}
-                className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50"
-              >
-                + Upload Another
-              </button>
-              <Link href={`/settlements/${settleId}`} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">
-                Back to Settlement
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* ── Step 1: UPLINE ── */}
-        {!doneUploadId && step === 1 && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="font-semibold text-gray-800 mb-1">Step 1 — Select UPLINE</h2>
-              <p className="text-sm text-gray-500">Upline ID from ID Master (isUpline = true). The exchange will be derived automatically.</p>
-            </div>
-            <div className="relative">
-              <input
-                type="text"
-                value={uplineSearch}
-                onChange={(e) => {
-                  setUplineSearch(e.target.value);
-                  setUpline(e.target.value.toUpperCase());
-                  setExch("");
-                  setShowUplineSuggestions(true);
-                }}
-                onFocus={() => setShowUplineSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowUplineSuggestions(false), 150)}
-                placeholder="Search upline ID e.g. JAMES10, ZEXCH1551"
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                autoFocus
-              />
-              {showUplineSuggestions && uplineSuggestions.length > 0 && (
-                <div className="absolute z-10 left-0 right-0 top-full mt-1 border rounded-lg bg-white shadow-lg max-h-48 overflow-y-auto">
-                  {uplineSuggestions.map((u) => (
-                    <button
-                      key={u.userId}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        setUpline(u.userId.toUpperCase());
-                        setUplineSearch(u.userId);
-                        setExch(u.idCode);
-                        setShowUplineSuggestions(false);
-                      }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex justify-between items-center"
-                    >
-                      <span className="font-mono font-semibold">{u.userId}</span>
-                      <span className="text-xs text-gray-400">exch: {u.idCode}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {upline && (
-              <p className="text-xs text-green-700 bg-green-50 px-3 py-1.5 rounded-lg">
-                Selected: <strong>{upline}</strong>
-                {exch && <span className="ml-2 text-gray-500">· Exchange: <strong className="text-gray-700">{exch}</strong></span>}
-              </p>
-            )}
-            {stepError && <p className="text-red-600 text-sm">{stepError}</p>}
-            <button
-              onClick={() => {
-                if (!upline.trim()) { setStepError("UPLINE is required"); return; }
-                setStepError("");
-                setStep(2);
-              }}
-              className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
-            >
-              Next →
-            </button>
-          </div>
-        )}
-
-        {/* ── Step 2: Upload file ── */}
-        {!doneUploadId && step === 2 && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="font-semibold text-gray-800 mb-1">Step 2 — Upload File</h2>
-              <p className="text-sm text-gray-500">
-                Select a <strong>.xlsx</strong>, <strong>.csv</strong>, or <strong>.html</strong> statement file.
-              </p>
-              <div className="mt-2 flex gap-3 text-xs text-gray-500">
-                <span>Upline: <strong className="text-gray-800">{upline}</strong></span>
-                {exch && <><span>·</span><span>Exchange: <strong className="text-gray-800">{exch}</strong></span></>}
+                }}>
+                  Upload Another
+                </Button>
+                <Button variant="ghost" asChild>
+                  <Link href={`/settlements/${settleId}`}>
+                    <ArrowLeft className="h-4 w-4 mr-1" />Back to Settlement
+                  </Link>
+                </Button>
               </div>
             </div>
-            <div
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setSelectedFile(f); }}
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors"
-            >
-              {selectedFile ? (
-                <div>
-                  <div className="text-2xl mb-2">📄</div>
-                  <p className="font-semibold text-gray-800">{selectedFile.name}</p>
-                  <p className="text-xs text-gray-400 mt-1">{(selectedFile.size / 1024).toFixed(1)} KB · Click to change</p>
-                </div>
-              ) : (
-                <div>
-                  <div className="text-3xl mb-2 text-gray-300">📁</div>
-                  <p className="text-gray-500 font-medium">Drag & drop or click to select</p>
-                  <p className="text-xs text-gray-400 mt-1">.xlsx, .csv, .html supported</p>
-                </div>
-              )}
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls,.csv,.html,.htm"
-              className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) setSelectedFile(f); }}
-            />
-            {uploadError && <p className="text-red-600 text-sm">{uploadError}</p>}
-            <div className="flex gap-3">
-              <button onClick={() => setStep(1)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">← Back</button>
-              <button
-                onClick={handleUpload}
-                disabled={!selectedFile || uploading}
-                className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
-              >
-                {uploading ? "Uploading…" : "Upload File →"}
-              </button>
-            </div>
-          </div>
-        )}
+          )}
 
-      </div>
+          {/* ── Step 1: UPLINE ── */}
+          {!doneUploadId && step === 1 && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="font-semibold mb-0.5">Step 1 — Select Upline</h2>
+                <p className="text-sm text-muted-foreground">Choose an upline from ID Master. The exchange will be derived automatically.</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Upline</Label>
+                <Popover open={comboOpen} onOpenChange={setComboOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={comboOpen}
+                      className={cn("w-full justify-between font-normal", !upline && "text-muted-foreground")}
+                    >
+                      <span className="truncate">
+                        {upline ? (
+                          <span className="flex items-center gap-2">
+                            <span className="font-mono font-semibold">{upline}</span>
+                            {exch && <Badge variant="secondary" className="text-xs">{exch}</Badge>}
+                          </span>
+                        ) : "Search upline ID…"}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Search upline ID…"
+                        onValueChange={setUplineSearch}
+                      />
+                      <CommandList>
+                        {uplineLoading ? (
+                          <div className="py-6 text-center text-sm text-muted-foreground">Loading…</div>
+                        ) : (
+                          <>
+                            <CommandEmpty>No uplines found.</CommandEmpty>
+                            <CommandGroup>
+                              {uplineList.map((u) => (
+                                <CommandItem
+                                  key={u.userId}
+                                  value={u.userId}
+                                  onSelect={() => {
+                                    setUpline(u.userId);
+                                    setExch(u.idCode);
+                                    setComboOpen(false);
+                                  }}
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4", upline === u.userId ? "opacity-100" : "opacity-0")} />
+                                  <span className="font-mono font-semibold flex-1">{u.userId}</span>
+                                  <span className="text-xs text-muted-foreground ml-2">exch: {u.idCode}</span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {stepError && <p className="text-sm text-destructive">{stepError}</p>}
+
+              <Button
+                onClick={() => {
+                  if (!upline.trim()) { setStepError("Please select an upline"); return; }
+                  setStepError("");
+                  setStep(2);
+                }}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+
+          {/* ── Step 2: Upload file ── */}
+          {!doneUploadId && step === 2 && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="font-semibold mb-0.5">Step 2 — Upload File</h2>
+                <p className="text-sm text-muted-foreground">
+                  Select a <strong>.xlsx</strong>, <strong>.csv</strong>, or <strong>.html</strong> statement file.
+                </p>
+                <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
+                  <span>Upline: <strong className="text-foreground font-mono">{upline}</strong></span>
+                  {exch && <><span>·</span><span>Exchange: <strong className="text-foreground">{exch}</strong></span></>}
+                </div>
+              </div>
+
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setSelectedFile(f); }}
+                onClick={() => fileInputRef.current?.click()}
+                className={cn(
+                  "border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors",
+                  selectedFile ? "border-primary/40 bg-primary/5" : "hover:bg-accent hover:border-primary/30"
+                )}
+              >
+                {selectedFile ? (
+                  <div>
+                    <FileText className="h-10 w-10 mx-auto mb-2 text-primary" />
+                    <p className="font-semibold">{selectedFile.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{(selectedFile.size / 1024).toFixed(1)} KB · Click to change</p>
+                  </div>
+                ) : (
+                  <div>
+                    <Upload className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
+                    <p className="text-muted-foreground font-medium">Drag &amp; drop or click to select</p>
+                    <p className="text-xs text-muted-foreground mt-1">.xlsx, .csv, .html supported</p>
+                  </div>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv,.html,.htm"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) setSelectedFile(f); }}
+              />
+
+              {uploadError && <p className="text-sm text-destructive">{uploadError}</p>}
+
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setStep(1)}>
+                  <ArrowLeft className="h-4 w-4 mr-1" />Back
+                </Button>
+                <Button
+                  onClick={handleUpload}
+                  disabled={!selectedFile || uploading}
+                >
+                  {uploading ? "Uploading…" : "Upload File"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+        </CardContent>
+      </Card>
     </div>
   );
 }
-
