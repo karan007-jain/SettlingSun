@@ -70,15 +70,22 @@ export const idMasterRouter = createTRPCRouter({
       return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
     }),
 
-  getUplines: protectedProcedure.query(async ({ ctx }) => {
-    return await ctx.prisma.idMaster.findMany({
-      where: { isUpline: true },
-      select: {
-        userId: true,
-        id: true,
-      },
-    });
-  }),
+  getUplines: protectedProcedure
+    .input(z.object({ search: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const where = {
+        isUpline: true,
+        ...(input?.search
+          ? { userId: { contains: input.search, mode: "insensitive" as const } }
+          : {}),
+      };
+      return await ctx.prisma.idMaster.findMany({
+        where,
+        select: { userId: true, id: true },
+        take: 50,
+        orderBy: { userId: "asc" },
+      });
+    }),
 
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))

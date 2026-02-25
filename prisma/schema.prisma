@@ -159,7 +159,8 @@ model SettlementUpload {
   exch         String
   upline       String
   filename     String
-  filepath     String
+  filepath     String?    // kept for legacy; file content is in fileData
+  fileData     Bytes?     // actual uploaded file stored in DB (serverless-safe)
   uploadedAt   DateTime   @default(now())
   status       String     @default("uploaded")
   recordCount  Int?

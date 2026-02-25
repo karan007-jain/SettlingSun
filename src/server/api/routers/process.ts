@@ -12,8 +12,7 @@ import {
 } from "@/lib/formatters";
 import { calculateUserRecord } from "@/lib/calculator";
 import {
-  parseFile,
-  moveToProcessed,
+  parseBuffer,
 } from "@/lib/file-parser";
 import type { IdMaster, Exch, PartyMaster } from "@prisma/client";
 import type { DbfRecord } from "@/lib/calculator";
@@ -69,7 +68,8 @@ export const processRouter = createTRPCRouter({
       }
 
       // Parse file headers and detect
-      const { headers, detection } = parseFile(upload.filepath, upload.filename);
+      if (!upload.fileData) throw new Error("File data not found — re-upload the file");
+      const { headers, detection } = parseBuffer(Buffer.from(upload.fileData), upload.filename);
       return { ...detection, fromConfig: false, headers };
     }),
 
@@ -92,7 +92,8 @@ export const processRouter = createTRPCRouter({
         data: { status: "processing" },
       });
 
-      const { rows, headers } = parseFile(upload.filepath, upload.filename);
+      if (!upload.fileData) throw new Error("File data not found — re-upload the file");
+      const { rows, headers } = parseBuffer(Buffer.from(upload.fileData), upload.filename);
       const formatterFn = FORMATTER_REGISTRY[input.formatter];
 
       const previewRows: PreviewRow[] = [];
@@ -197,7 +198,8 @@ export const processRouter = createTRPCRouter({
       });
       if (!upload) throw new Error("Upload not found");
 
-      const { rows } = parseFile(upload.filepath, upload.filename);
+      if (!upload.fileData) throw new Error("File data not found — re-upload the file");
+      const { rows } = parseBuffer(Buffer.from(upload.fileData), upload.filename);
       const row = rows[input.rowIndex];
       if (!row) throw new Error("Row not found");
 
@@ -321,7 +323,8 @@ export const processRouter = createTRPCRouter({
       });
       if (!upload) throw new Error("Upload not found");
 
-      const { rows } = parseFile(upload.filepath, upload.filename);
+      if (!upload.fileData) throw new Error("File data not found — re-upload the file");
+      const { rows } = parseBuffer(Buffer.from(upload.fileData), upload.filename);
       const formatterFn = FORMATTER_REGISTRY[input.formatter];
 
       const selectedIndexes = new Set(input.selectedRowIndexes);
@@ -387,13 +390,6 @@ export const processRouter = createTRPCRouter({
       });
       const count = dbfRecords.length;
 
-      // Move source file to processed
-      const processedPath = moveToProcessed(
-        upload.filepath,
-        upload.upline,
-        upload.filename
-      );
-
       // Upsert FormatConfig for auto-learning
       await ctx.prisma.formatConfig.upsert({
         where: { filecode: upload.upline },
@@ -408,7 +404,6 @@ export const processRouter = createTRPCRouter({
           status: "processed",
           recordCount: count,
           processedAt: new Date(),
-          filepath: processedPath,
         },
       });
 

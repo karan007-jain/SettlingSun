@@ -18,6 +18,31 @@ export const partyMasterRouter = createTRPCRouter({
     });
   }),
 
+  // Lean endpoint for autocomplete dropdowns — no full rows, server-side filtered
+  listOptions: protectedProcedure
+    .input(z.object({ search: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      const { search } = input;
+      const where = search
+        ? {
+            OR: [
+              { partyCode: { contains: search, mode: "insensitive" as const } },
+              { partyName: { contains: search, mode: "insensitive" as const } },
+            ],
+          }
+        : {};
+      const items = await ctx.prisma.partyMaster.findMany({
+        where,
+        select: { partyCode: true, partyName: true },
+        take: 50,
+        orderBy: { partyCode: "asc" },
+      });
+      return items.map((p) => ({
+        value: p.partyCode,
+        label: `${p.partyCode} - ${p.partyName}`,
+      }));
+    }),
+
   getList: protectedProcedure
     .input(
       z.object({

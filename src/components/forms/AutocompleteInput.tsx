@@ -31,6 +31,9 @@ interface AutocompleteInputProps {
   placeholder?: string;
   label?: string;
   error?: string;
+  /** Called with each keystroke in the search box — use for server-side filtering */
+  onSearch?: (query: string) => void;
+  isLoading?: boolean;
 }
 
 export function AutocompleteInput({
@@ -40,10 +43,16 @@ export function AutocompleteInput({
   placeholder = "Select option...",
   label,
   error,
+  onSearch,
+  isLoading,
 }: AutocompleteInputProps) {
   const [open, setOpen] = useState(false);
 
   const selectedOption = options.find((o) => o.value === value);
+  // When a value is set but not yet in the fetched options (e.g. edit mode
+  // and the record is outside the first page), show the raw value as fallback
+  // so the field never looks empty.
+  const displayLabel = selectedOption?.label ?? (value || undefined);
 
   return (
     <div className="w-full space-y-1.5">
@@ -56,40 +65,50 @@ export function AutocompleteInput({
             aria-expanded={open}
             className={cn(
               "w-full justify-between font-normal",
-              !selectedOption && "text-muted-foreground"
+              !displayLabel && "text-muted-foreground"
             )}
           >
             <span className="truncate">
-              {selectedOption ? selectedOption.label : placeholder}
+              {displayLabel ?? placeholder}
             </span>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-          <Command>
-            <CommandInput placeholder={`Search…`} />
+          {/* shouldFilter=false when onSearch is provided — server handles filtering */}
+          <Command shouldFilter={!onSearch}>
+            <CommandInput
+              placeholder="Search…"
+              onValueChange={onSearch}
+            />
             <CommandList>
-              <CommandEmpty>No results found.</CommandEmpty>
-              <CommandGroup>
-                {options.map((option) => (
-                  <CommandItem
-                    key={option.value}
-                    value={option.label}
-                    onSelect={() => {
-                      onChange(option.value === value ? "" : option.value);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        value === option.value ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {option.label}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
+              {isLoading ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">Loading…</div>
+              ) : (
+                <>
+                  <CommandEmpty>No results found.</CommandEmpty>
+                  <CommandGroup>
+                    {options.map((option) => (
+                      <CommandItem
+                        key={option.value}
+                        value={option.label}
+                        onSelect={() => {
+                          onChange(option.value === value ? "" : option.value);
+                          setOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            value === option.value ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {option.label}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </>
+              )}
             </CommandList>
           </Command>
         </PopoverContent>

@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { buildUploadPath } from "@/lib/file-parser";
 
 export async function POST(request: NextRequest) {
   // Auth check
@@ -37,27 +35,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const filename = file.name;
-    const filePath = buildUploadPath(settleId, exch, upline, filename);
-
-    // Write file to disk
+    // Read file bytes into memory — no filesystem writes (serverless-safe)
     const arrayBuffer = await file.arrayBuffer();
-    fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
+    const fileData = Buffer.from(arrayBuffer);
 
-    // Create SettlementUpload record
     const upload = await prisma.settlementUpload.create({
       data: {
         settlementId: settlement.id,
         settleId,
         exch,
         upline,
-        filename,
-        filepath: filePath,
+        filename: file.name,
+        fileData,
         status: "uploaded",
       },
     });
 
-    return NextResponse.json({ uploadId: upload.id, filename, filepath: filePath });
+    return NextResponse.json({ uploadId: upload.id, filename: file.name });
   } catch (err) {
     console.error("Upload error:", err);
     return NextResponse.json(

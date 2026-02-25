@@ -78,23 +78,25 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
   const [copied, setCopied] = useState(false);
   // Store last submitted data for template rendering
 
-  const { data: parties = [] } = api.partyMaster.getAll.useQuery();
-  const { data: exchanges = [] } = api.exch.getAll.useQuery();
-  const { data: uplines = [] } = api.idMaster.getUplines.useQuery();
+  // Per-field search state — lean server-filtered queries instead of getAll/getAll(with joins).
+  // Seeded from defaultValues so edit mode pre-fetches the saved record even if it
+  // falls outside the first page of results.
+  const [partySearch, setPartySearch] = useState(defaultValues?.partyCode ?? "");
+  const [exchSearch, setExchSearch] = useState(defaultValues?.idCode ?? "");
+  const [partnerSearch, setPartnerSearch] = useState(defaultValues?.partner ?? "");
+  const [uplineSearch, setUplineSearch] = useState(defaultValues?.uplineId ?? "");
+  const { data: partyOptions = [], isFetching: partyLoading } =
+    api.partyMaster.listOptions.useQuery({ search: partySearch });
+  const { data: exchOptions = [], isFetching: exchLoading } =
+    api.exch.listOptions.useQuery({ search: exchSearch });
+  const { data: partnerOptions = [], isFetching: partnerLoading } =
+    api.partyMaster.listOptions.useQuery({ search: partnerSearch });
+  const { data: uplines = [], isFetching: uplineLoading } =
+    api.idMaster.getUplines.useQuery({ search: uplineSearch });
 
-  const partyOptions = parties.map((party: any) => ({
-    value: party.partyCode,
-    label: `${party.partyCode} - ${party.partyName}`,
-  }));
-
-  const exchOptions = exchanges.map((exch: any) => ({
-    value: exch.idName,
-    label: `${exch.idName} - ${exch.shortCode}`,
-  }));
-
-  const uplineOptions = uplines.map((upline: any) => ({
-    value: upline.userId,
-    label: upline.userId,
+  const uplineOptions = uplines.map((u: any) => ({
+    value: u.userId,
+    label: u.userId,
   }));
 
   const {
@@ -116,9 +118,12 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
   const isUplineValue = watch("isUpline");
   const idCodeValue = watch("idCode");
 
-  // Derive currency from the selected exchange
-  const selectedExch = (exchanges as any[]).find((e: any) => e.idName === idCodeValue);
-  const currency: "PAISA" | "RUPEE" = selectedExch?.currency ?? "PAISA";
+  // Derive currency from the selected exchange — lean single-field query
+  const { data: selectedExch } = api.exch.getByIdName.useQuery(
+    { idName: idCodeValue ?? "" },
+    { enabled: !!idCodeValue }
+  );
+  const currency: "PAISA" | "RUPEE" = (selectedExch?.currency as "PAISA" | "RUPEE") ?? "PAISA";
 
   useEffect(() => {
     setShowUplineId(!isUplineValue);
@@ -292,6 +297,8 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
               options={partyOptions}
               value={field.value || ""}
               onChange={field.onChange}
+              onSearch={setPartySearch}
+              isLoading={partyLoading}
               placeholder="Select party..."
               error={errors.partyCode?.message}
             />
@@ -306,6 +313,8 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
               options={exchOptions}
               value={field.value || ""}
               onChange={field.onChange}
+              onSearch={setExchSearch}
+              isLoading={exchLoading}
               placeholder="Select exchange..."
               error={errors.idCode?.message}
             />
@@ -355,9 +364,11 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
         render={({ field }) => (
           <AutocompleteInput
             label="Partner Party (optional)"
-            options={partyOptions}
+            options={partnerOptions}
             value={field.value || ""}
             onChange={field.onChange}
+            onSearch={setPartnerSearch}
+            isLoading={partnerLoading}
             placeholder="Select partner party..."
             error={errors.partner?.message}
           />
@@ -399,6 +410,8 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
               options={uplineOptions}
               value={field.value || ""}
               onChange={field.onChange}
+              onSearch={setUplineSearch}
+              isLoading={uplineLoading}
               placeholder="Select upline..."
               error={errors.uplineId?.message}
             />

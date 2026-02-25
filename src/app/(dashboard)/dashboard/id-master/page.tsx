@@ -68,6 +68,7 @@ export default function IdMasterPage() {
       comm: Number(id.comm),
       rate: isRupee ? Number(id.rate) / 100 : Number(id.rate),
       pati: id.pati,
+      partner: id.partner ?? null,
       active: id.active,
       isUpline: id.isUpline,
       uplineId: id.uplineId,

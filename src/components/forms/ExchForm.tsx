@@ -3,6 +3,7 @@
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,12 +39,14 @@ export function ExchForm({ defaultValues, id, onSuccess }: ExchFormProps) {
   const { toast } = useToast();
   const utils = api.useUtils();
 
-  const { data: parties = [] } = api.partyMaster.getAll.useQuery();
-
-  const partyOptions = parties.map((party: any) => ({
-    value: party.partyCode,
-    label: `${party.partyCode} - ${party.partyName}`,
-  }));
+  // Per-field search state — lean server-filtered queries instead of getAll.
+  // Seeded from defaultValues so edit mode pre-fetches the saved record.
+  const [partyCodeSearch, setPartyCodeSearch] = useState(defaultValues?.partyCode ?? "");
+  const [idAcSearch, setIdAcSearch] = useState(defaultValues?.idAc ?? "");
+  const { data: partyCodeOptions = [], isFetching: partyCodeLoading } =
+    api.partyMaster.listOptions.useQuery({ search: partyCodeSearch });
+  const { data: idAcOptions = [], isFetching: idAcLoading } =
+    api.partyMaster.listOptions.useQuery({ search: idAcSearch });
 
   const {
     register,
@@ -145,9 +148,11 @@ export function ExchForm({ defaultValues, id, onSuccess }: ExchFormProps) {
         render={({ field }) => (
           <AutocompleteInput
             label="Party Code"
-            options={partyOptions}
+            options={partyCodeOptions}
             value={field.value || ""}
             onChange={field.onChange}
+            onSearch={setPartyCodeSearch}
+            isLoading={partyCodeLoading}
             placeholder="Select party..."
             error={errors.partyCode?.message}
           />
@@ -175,9 +180,11 @@ export function ExchForm({ defaultValues, id, onSuccess }: ExchFormProps) {
         render={({ field }) => (
           <AutocompleteInput
             label="ID Ac (Account Party)"
-            options={partyOptions}
+            options={idAcOptions}
             value={field.value || ""}
             onChange={field.onChange}
+            onSearch={setIdAcSearch}
+            isLoading={idAcLoading}
             placeholder="Select party..."
             error={errors.idAc?.message}
           />

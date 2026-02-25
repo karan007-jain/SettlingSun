@@ -28,6 +28,31 @@ export const exchRouter = createTRPCRouter({
     });
   }),
 
+  // Lean endpoint for autocomplete dropdowns — no joins, server-side filtered
+  listOptions: protectedProcedure
+    .input(z.object({ search: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      const { search } = input;
+      const where = search
+        ? {
+            OR: [
+              { idName: { contains: search, mode: "insensitive" as const } },
+              { shortCode: { contains: search, mode: "insensitive" as const } },
+            ],
+          }
+        : {};
+      const items = await ctx.prisma.exch.findMany({
+        where,
+        select: { idName: true, shortCode: true },
+        take: 50,
+        orderBy: { idName: "asc" },
+      });
+      return items.map((e) => ({
+        value: e.idName,
+        label: `${e.idName} - ${e.shortCode}`,
+      }));
+    }),
+
   getList: protectedProcedure
     .input(
       z.object({
@@ -60,6 +85,15 @@ export const exchRouter = createTRPCRouter({
         ctx.prisma.exch.count({ where }),
       ]);
       return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+    }),
+
+  getByIdName: protectedProcedure
+    .input(z.object({ idName: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return await ctx.prisma.exch.findFirst({
+        where: { idName: input.idName },
+        select: { idName: true, currency: true },
+      });
     }),
 
   getById: protectedProcedure
