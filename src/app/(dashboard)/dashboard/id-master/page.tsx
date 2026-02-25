@@ -69,6 +69,7 @@ export default function IdMasterPage() {
   });
 
   const isAdmin = session?.user?.role === "ADMIN";
+  const canWrite = !!session?.user;
 
   const handleEdit = (id: any) => {
     setEditingId({
@@ -109,7 +110,7 @@ export default function IdMasterPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">ID Master</h1>
-        {isAdmin && (
+        {canWrite && (
           <>
             <Button onClick={() => { setEditingId(null); setOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" />
@@ -181,7 +182,7 @@ export default function IdMasterPage() {
           <div className="p-8 text-center">Loading...</div>
         ) : items.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            No ID Masters found. {isAdmin && !search && "Create one to get started."}
+            No ID Masters found. {canWrite && !search && "Create one to get started."}
           </div>
         ) : (
           <Table>
@@ -196,7 +197,7 @@ export default function IdMasterPage() {
                 <TableHead>Active</TableHead>
                 <TableHead>Upline</TableHead>
                 <TableHead>Upline ID</TableHead>
-                {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                {canWrite && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -215,15 +216,17 @@ export default function IdMasterPage() {
                     {id.isUpline ? <Check className="h-4 w-4 text-green-600" /> : <X className="h-4 w-4 text-red-600" />}
                   </TableCell>
                   <TableCell>{id.upline?.userId || "-"}</TableCell>
-                  {isAdmin && (
+                  {canWrite && (
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleEdit(id)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDelete(id.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {isAdmin && (
+                          <Button variant="destructive" size="sm" onClick={() => handleDelete(id.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   )}

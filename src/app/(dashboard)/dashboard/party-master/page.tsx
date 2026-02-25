@@ -64,6 +64,7 @@ export default function PartyMasterPage() {
   });
 
   const isAdmin = session?.user?.role === "ADMIN";
+  const canWrite = !!session?.user;
 
   const handleEdit = (party: any) => {
     setEditingParty(party);
@@ -80,7 +81,7 @@ export default function PartyMasterPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Party Master</h1>
-        {isAdmin && (
+        {canWrite && (
           <>
             <Button onClick={() => { setEditingParty(null); setOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" />
@@ -124,7 +125,7 @@ export default function PartyMasterPage() {
           <div className="p-8 text-center">Loading...</div>
         ) : items.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            No parties found. {isAdmin && !search && "Create one to get started."}
+            No parties found. {canWrite && !search && "Create one to get started."}
           </div>
         ) : (
           <Table>
@@ -134,7 +135,7 @@ export default function PartyMasterPage() {
                 <TableHead>Party Name</TableHead>
                 <TableHead>Reference</TableHead>
                 <TableHead>Created At</TableHead>
-                {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                {canWrite && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -144,15 +145,17 @@ export default function PartyMasterPage() {
                   <TableCell>{party.partyName}</TableCell>
                   <TableCell>{party.ref || "-"}</TableCell>
                   <TableCell>{new Date(party.createdAt).toLocaleDateString()}</TableCell>
-                  {isAdmin && (
+                  {canWrite && (
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleEdit(party)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDelete(party.partyCode)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {isAdmin && (
+                          <Button variant="destructive" size="sm" onClick={() => handleDelete(party.partyCode)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   )}

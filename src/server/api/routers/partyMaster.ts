@@ -58,7 +58,7 @@ export const partyMasterRouter = createTRPCRouter({
       });
     }),
 
-  create: adminProcedure
+  create: protectedProcedure
     .input(partyMasterSchema)
     .mutation(async ({ ctx, input }) => {
       return await ctx.prisma.partyMaster.create({
@@ -70,7 +70,7 @@ export const partyMasterRouter = createTRPCRouter({
       });
     }),
 
-  update: adminProcedure
+  update: protectedProcedure
     .input(
       z.object({
         partyCode: z.string(),

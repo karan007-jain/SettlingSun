@@ -94,7 +94,7 @@ export const idMasterRouter = createTRPCRouter({
       });
     }),
 
-  create: adminProcedure
+  create: protectedProcedure
     .input(idMasterSchema)
     .mutation(async ({ ctx, input }) => {
       return await ctx.prisma.idMaster.create({
@@ -120,7 +120,7 @@ export const idMasterRouter = createTRPCRouter({
       });
     }),
 
-  update: adminProcedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.string(),

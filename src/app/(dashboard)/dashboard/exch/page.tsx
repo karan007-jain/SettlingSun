@@ -64,6 +64,7 @@ export default function ExchPage() {
   });
 
   const isAdmin = session?.user?.role === "ADMIN";
+  const canWrite = !!session?.user;
 
   const handleEdit = (exch: any) => {
     setEditingExch({
@@ -90,7 +91,7 @@ export default function ExchPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Exchange</h1>
-        {isAdmin && (
+        {canWrite && (
           <>
             <Button onClick={() => { setEditingExch(null); setOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" />
@@ -134,7 +135,7 @@ export default function ExchPage() {
           <div className="p-8 text-center">Loading...</div>
         ) : items.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            No exchanges found. {isAdmin && !search && "Create one to get started."}
+            No exchanges found. {canWrite && !search && "Create one to get started."}
           </div>
         ) : (
           <Table>
@@ -146,7 +147,7 @@ export default function ExchPage() {
                 <TableHead>Rate</TableHead>
                 <TableHead>ID Comm</TableHead>
                 <TableHead>ID Ac</TableHead>
-                {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                {canWrite && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -158,15 +159,17 @@ export default function ExchPage() {
                   <TableCell>{Number(exch.rate).toFixed(2)}</TableCell>
                   <TableCell>{Number(exch.idComm).toFixed(2)}</TableCell>
                   <TableCell>{exch.idAcParty.partyName}</TableCell>
-                  {isAdmin && (
+                  {canWrite && (
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleEdit(exch)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDelete(exch.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {isAdmin && (
+                          <Button variant="destructive" size="sm" onClick={() => handleDelete(exch.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   )}

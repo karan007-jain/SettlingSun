@@ -74,7 +74,7 @@ export const exchRouter = createTRPCRouter({
       });
     }),
 
-  create: adminProcedure
+  create: protectedProcedure
     .input(exchSchema)
     .mutation(async ({ ctx, input }) => {
       return await ctx.prisma.exch.create({
@@ -95,7 +95,7 @@ export const exchRouter = createTRPCRouter({
       });
     }),
 
-  update: adminProcedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.string(),
