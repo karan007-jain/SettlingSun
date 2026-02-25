@@ -10,13 +10,38 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AutocompleteInput } from "./AutocompleteInput";
 import { api } from "@/lib/trpc";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+
+function renderTemplate(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, key) =>
+    vars[key] !== undefined ? String(vars[key]) : `{${key}}`
+  );
+}
+
+function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((resolve, reject) => {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    ok ? resolve() : reject(new Error("execCommand copy failed"));
+  });
+}
 
 const idMasterSchema = z.object({
   userId: z.string()
     .max(15, "User ID must be at most 15 characters")
     .regex(/^[A-Z0-9.*]+$/i, "User ID must be alphanumeric and can contain . and *"),
-  partyCode: z.string().length(6, "Party Code is required"),
+  partyCode: z.string().min(1, "Party Code is required").max(6),
   idCode: z.string().min(1, "ID Code is required"),
   credit: z.coerce.number().min(0, "Credit must be positive").default(0),
   comm: z.coerce.number().min(0, "Comm must be positive"),
@@ -40,10 +65,14 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
   const { toast } = useToast();
   const utils = api.useUtils();
   const [showUplineId, setShowUplineId] = useState(defaultValues?.isUpline || false);
-  // Point vs Amount mode — only relevant on create; Amount appends * to userId
   const [isAmount, setIsAmount] = useState(
     () => !!defaultValues?.userId?.endsWith("*")
   );
+
+  // Template copy state
+  const [savedText, setSavedText] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  // Store last submitted data for template rendering
 
   const { data: parties = [] } = api.partyMaster.getAll.useQuery();
   const { data: exchanges = [] } = api.exch.getAll.useQuery();
@@ -55,7 +84,7 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
   }));
 
   const exchOptions = exchanges.map((exch: any) => ({
-    value: exch.id,
+    value: exch.idName,
     label: `${exch.idName} - ${exch.shortCode}`,
   }));
 
@@ -87,22 +116,33 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
   }, [isUplineValue]);
 
   const createMutation = api.idMaster.create.useMutation({
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "ID Master created successfully",
-      });
-      reset();
+    onSuccess: (data) => {
       utils.idMaster.getAll.invalidate();
       utils.idMaster.getUplines.invalidate();
-      onSuccess?.();
+
+      // Check if the selected exchange has a template
+      const submitted = data;
+
+      if (submitted.exch.template?.trim() && submitted) {
+        const text = renderTemplate(submitted.exch.template, {
+          userid: submitted.userId.replace(/[.*]/g, ""),
+          upline: submitted.uplineId ?? "",
+          partyCode: submitted.partyCode,
+          idCode: submitted.idCode,
+          rate: submitted.exch.currency === "RUPEE" ?  Number(submitted.rate) /100 : Number(submitted.rate),
+          commission: Number(submitted.comm),
+          pati: Number(submitted.pati) ?? 0,
+        });
+        setSavedText(text);
+        copyToClipboard(text).then(() => setCopied(true)).catch(() => {});
+      } else {
+        toast({ title: "Success", description: "ID Master created successfully" });
+        reset();
+        onSuccess?.();
+      }
     },
     onError: (error: any) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      toast({ variant: "destructive", title: "Error", description: error.message });
     },
   });
 
@@ -142,6 +182,59 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
       createMutation.mutate(submitData);
     }
   };
+
+  // ── Post-save: generated template view ───────────────────────────────────
+  if (savedText !== null) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="text-green-600 text-xl">✅</span>
+          <h3 className="text-base font-bold text-gray-900">ID Master Created</h3>
+          {copied && <span className="ml-2 text-green-600 text-sm font-medium">Copied!</span>}
+        </div>
+        <div className="bg-gray-50 border rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-gray-500">Generated Message</span>
+            <button
+              type="button"
+              onClick={() => {
+                copyToClipboard(savedText).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }).catch(() => {
+                  const pre = document.querySelector("pre[data-copy-idmaster]") as HTMLPreElement | null;
+                  if (pre) {
+                    const range = document.createRange();
+                    range.selectNodeContents(pre);
+                    window.getSelection()?.removeAllRanges();
+                    window.getSelection()?.addRange(range);
+                  }
+                });
+              }}
+              className="text-xs bg-blue-600 text-white px-2.5 py-1 rounded hover:bg-blue-700 font-medium"
+            >
+              {copied ? "✓ Copied" : "Copy"}
+            </button>
+          </div>
+          <pre data-copy-idmaster className="text-sm font-mono whitespace-pre-wrap break-words text-gray-800 leading-relaxed">
+            {savedText}
+          </pre>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setSavedText(null);
+            setCopied(false);
+            reset();
+            onSuccess?.();
+          }}
+          className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 font-medium text-sm"
+        >
+          Done
+        </button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

@@ -21,6 +21,26 @@ function renderTemplate(
   );
 }
 
+function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  // Fallback for http or blocked clipboard API
+  return new Promise((resolve, reject) => {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    ok ? resolve() : reject(new Error("execCommand copy failed"));
+  });
+}
+
 export function AddUserModal({ userid, upline, idCode, onSave, onCancel }: AddUserModalProps) {
   const [partyCode, setPartyCode] = useState("");
   const [rate, setRate] = useState(0);
@@ -59,7 +79,7 @@ export function AddUserModal({ userid, upline, idCode, onSave, onCancel }: AddUs
       const template = (item as any)?.template as string | null | undefined;
       if (template?.trim()) {
         const text = renderTemplate(template, {
-          userid: effectiveUserid,
+          userid: effectiveUserid.replace(/[.*]/g, ""),
           upline,
           partyCode,
           idCode,
@@ -69,7 +89,7 @@ export function AddUserModal({ userid, upline, idCode, onSave, onCancel }: AddUs
         });
         setSavedText(text);
         // Auto-copy to clipboard
-        navigator.clipboard.writeText(text).then(() => setCopied(true)).catch(() => {});
+        copyToClipboard(text).then(() => setCopied(true)).catch(() => {});
       } else {
         onSave();
       }
@@ -86,9 +106,18 @@ export function AddUserModal({ userid, upline, idCode, onSave, onCancel }: AddUs
 
   const handleCopy = () => {
     if (!savedText) return;
-    navigator.clipboard.writeText(savedText).then(() => {
+    copyToClipboard(savedText).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // Last resort: select the pre element text
+      const pre = document.querySelector("pre[data-copy]") as HTMLPreElement | null;
+      if (pre) {
+        const range = document.createRange();
+        range.selectNodeContents(pre);
+        window.getSelection()?.removeAllRanges();
+        window.getSelection()?.addRange(range);
+      }
     });
   };
 
@@ -118,7 +147,7 @@ export function AddUserModal({ userid, upline, idCode, onSave, onCancel }: AddUs
                 {copied ? "✓ Copied" : "Copy"}
               </button>
             </div>
-            <pre className="text-sm font-mono whitespace-pre-wrap break-words text-gray-800 leading-relaxed">
+            <pre data-copy className="text-sm font-mono whitespace-pre-wrap break-words text-gray-800 leading-relaxed">
               {savedText}
             </pre>
           </div>

@@ -14,11 +14,11 @@ const exchSchema = z.object({
   idName: z.string()
     .max(15, "ID Name must be at most 15 characters")
     .regex(/^[A-Z0-9]+$/i, "ID Name must be alphanumeric (A-Z, 0-9)"),
-  partyCode: z.string().length(6, "Party Code is required"),
+  partyCode: z.string().min(1, "Party Code is required").max(6),
   shortCode: z.string().max(8, "Short Code must be at most 8 characters"),
   rate: z.coerce.number().min(0, "Rate must be positive"),
   idComm: z.coerce.number().min(0, "ID Comm must be positive"),
-  idAc: z.string().length(6, "ID Ac is required"),
+  idAc: z.string().min(1, "ID Ac is required").max(6),
   currency: z.enum(["PAISA", "RUPEE"]).default("PAISA"),
   template: z.string().optional(),
 });
