@@ -4,23 +4,15 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { UserForm } from "@/components/forms/UserForm";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/PageHeader";
+import { DeleteAlertDialog } from "@/components/DeleteAlertDialog";
 import { api } from "@/lib/trpc";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, Plus, Shield, User as UserIcon } from "lucide-react";
+import { Pencil, Trash2, Plus, ShieldCheck, User as UserIcon, Shield } from "lucide-react";
 
 export default function UsersPage() {
   const { data: session } = useSession();
@@ -28,158 +20,119 @@ export default function UsersPage() {
   const utils = api.useUtils();
   const [open, setOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const { data: users = [], isLoading } = api.user.getAll.useQuery();
 
   const deleteMutation = api.user.delete.useMutation({
     onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "User deleted successfully",
-      });
+      toast({ title: "Success", description: "User deleted successfully" });
       utils.user.getAll.invalidate();
+      setDeleteTarget(null);
     },
     onError: (error: any) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message,
-      });
+      toast({ variant: "destructive", title: "Error", description: error.message });
     },
   });
 
   const isAdmin = session?.user?.role === "ADMIN";
 
-  // Redirect if not admin
   if (!isAdmin) {
     return (
-      <div className="text-center py-8">
-        <p className="text-lg text-gray-600">Access denied. Admin only.</p>
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <div className="text-center space-y-2">
+          <ShieldCheck className="h-10 w-10 mx-auto text-muted-foreground" />
+          <p className="text-lg font-medium">Access Denied</p>
+          <p className="text-sm text-muted-foreground">Admin access is required.</p>
+        </div>
       </div>
     );
   }
 
-  const handleEdit = (user: any) => {
-    setEditingUser({
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    });
-    setOpen(true);
+  const handleEdit = (user: any) => { setEditingUser({ id: user.id, email: user.email, role: user.role }); setOpen(true); };
+  const confirmDelete = () => { if (deleteTarget) deleteMutation.mutate({ id: deleteTarget }); };
+
+  const roleBadgeVariant = (role: string): "default" | "secondary" | "outline" => {
+    if (role === "ADMIN") return "default";
+    if (role === "MANAGER") return "secondary";
+    return "outline";
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this user?")) {
-      deleteMutation.mutate({ id });
-    }
-  };
-
-  const handleNewUser = () => {
-    setEditingUser(null);
-    setOpen(true);
-  };
-
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case "ADMIN":
-        return "bg-red-100 text-red-800";
-      case "MANAGER":
-        return "bg-blue-100 text-blue-800";
-      case "USER":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getRoleIcon = (role: string) => {
-    return role === "ADMIN" ? (
-      <Shield className="h-4 w-4 inline mr-1" />
-    ) : (
-      <UserIcon className="h-4 w-4 inline mr-1" />
-    );
-  };
+  const RoleIcon = ({ role }: { role: string }) =>
+    role === "ADMIN" ? <Shield className="h-3 w-3 mr-1" /> : <UserIcon className="h-3 w-3 mr-1" />;
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">User Management</h1>
-        <Button onClick={handleNewUser}>
-          <Plus className="h-4 w-4 mr-2" />
-          New User
-        </Button>
-        <Dialog open={open} onOpenChange={(isOpen) => {
-          setOpen(isOpen);
-          if (!isOpen) {
-            setEditingUser(null);
-          }
-        }}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editingUser ? "Edit" : "Create"} User
-              </DialogTitle>
-            </DialogHeader>
-            <UserForm
-              defaultValues={editingUser || undefined}
-              userId={editingUser?.id}
-              onSuccess={() => setOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
+      <PageHeader
+        title="User Management"
+        description="Manage system users and their roles"
+        action={
+          <Button onClick={() => { setEditingUser(null); setOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" /> New User
+          </Button>
+        }
+      />
 
-      <div className="bg-white rounded-lg shadow">
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditingUser(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingUser ? "Edit" : "Create"} User</DialogTitle>
+          </DialogHeader>
+          <UserForm
+            defaultValues={editingUser || undefined}
+            userId={editingUser?.id}
+            onSuccess={() => { setOpen(false); utils.user.getAll.invalidate(); }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <DeleteAlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}
+        title="Delete User"
+        description="This will permanently delete the user account."
+        onConfirm={confirmDelete}
+      />
+
+      <div className="rounded-lg border bg-card overflow-x-auto">
         {isLoading ? (
-          <div className="p-8 text-center">Loading...</div>
-        ) : users.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            No users found. Create one to get started.
+          <div className="p-4 space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
+        ) : (users as any[]).length === 0 ? (
+          <div className="p-10 text-center text-muted-foreground">No users found. Create one to get started.</div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Created At</TableHead>
-                <TableHead>Updated At</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Updated</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user: any) => (
+              {(users as any[]).map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.email}</TableCell>
                   <TableCell>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(
-                        user.role
-                      )}`}
-                    >
-                      {getRoleIcon(user.role)}
+                    <Badge variant={roleBadgeVariant(user.role)} className="gap-1 text-xs">
+                      <RoleIcon role={user.role} />
                       {user.role}
-                    </span>
+                    </Badge>
                   </TableCell>
-                  <TableCell>
-                    {new Date(user.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(user.updatedAt).toLocaleDateString()}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-muted-foreground">{new Date(user.updatedAt).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(user)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(user)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => handleDelete(user.id)}
+                        onClick={() => setDeleteTarget(user.id)}
                         disabled={user.id === session?.user?.id}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -195,3 +148,4 @@ export default function UsersPage() {
     </div>
   );
 }
+

@@ -8,6 +8,18 @@ import { format } from "date-fns";
 import { AddUserModal } from "@/components/forms/AddUserModal";
 import { ALL_FORMATTER_NAMES, type FormatterName } from "@/lib/formatters";
 import type { PreviewRow } from "@/server/api/routers/process";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type Step = 1 | 2 | 3;
 
@@ -124,20 +136,20 @@ export default function ProcessPage() {
   return (
     <div>
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 mb-4 text-sm">
-        <Link href="/settlements" className="text-blue-600 hover:underline">Settlements</Link>
-        <span className="text-gray-400">/</span>
-        <Link href={`/settlements/${settleId}`} className="text-blue-600 hover:underline">{settleId}</Link>
-        <span className="text-gray-400">/</span>
-        <span className="text-gray-700 font-medium">Process</span>
+      <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
+        <Link href="/settlements" className="hover:text-foreground transition-colors">Settlements</Link>
+        <span>/</span>
+        <Link href={`/settlements/${settleId}`} className="hover:text-foreground transition-colors">{settleId}</Link>
+        <span>/</span>
+        <span className="text-foreground font-medium">Process</span>
       </div>
 
       <div className="flex items-center justify-between mb-5">
-        <h1 className="text-xl font-bold text-gray-900">Process File</h1>
+        <h1 className="text-xl font-bold">Process File</h1>
         {upload && (
-          <div className="text-sm text-gray-500 text-right">
-            <p><span className="font-medium text-gray-700">{upload.filename}</span></p>
-            <p>EXCH: <strong>{upload.exch}</strong> · UPLINE: <strong>{upload.upline}</strong></p>
+          <div className="text-sm text-muted-foreground text-right">
+            <p><span className="font-medium text-foreground">{upload.filename}</span></p>
+            <p>EXCH: <Badge variant="secondary" className="font-mono">{upload.exch}</Badge> UPLINE: <Badge variant="secondary" className="font-mono">{upload.upline}</Badge></p>
           </div>
         )}
       </div>
@@ -168,22 +180,22 @@ export default function ProcessPage() {
         })}
       </div>
 
-      <div className="bg-white border rounded-xl p-6 max-w-5xl">
+      <div className="border rounded-xl p-6 max-w-5xl bg-card">
 
         {/* ── Step 1: Formatter detection ── */}
         {step === 1 && (
           <div className="space-y-4">
             <div>
-              <h2 className="font-semibold text-gray-800 mb-1">Step 1 — Format Detection</h2>
-              <p className="text-sm text-gray-500">Auto-detected formatter based on file headers and upline config.</p>
+              <h2 className="font-semibold mb-1">Step 1 — Format Detection</h2>
+              <p className="text-sm text-muted-foreground">Auto-detected formatter based on file headers and upline config.</p>
             </div>
 
             {detectFormatterQuery.isLoading ? (
-              <div className="text-gray-400 text-sm py-4">Detecting format…</div>
+              <div className="text-muted-foreground text-sm py-4">Detecting format…</div>
             ) : detectFormatterQuery.data ? (
               <div className="space-y-3">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-                  <p className="text-sm font-medium text-blue-700">
+                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
+                  <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
                     {detectionFromConfig ? "📌 From config:" : "🔍 Detected:"}
                     {" "}<span className="font-mono font-bold">{detectedFormatter}</span>
                   </p>
@@ -192,32 +204,34 @@ export default function ProcessPage() {
                     {detectionFromConfig && " (exact match from FormatConfig)"}
                   </p>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Override formatter (optional)</label>
-                  <select
-                    value={formatter}
-                    onChange={(e) => setFormatter(e.target.value as FormatterName)}
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  >
-                    {ALL_FORMATTER_NAMES.map((f) => <option key={f} value={f}>{f}</option>)}
-                  </select>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Override formatter (optional)</label>
+                  <Select value={formatter} onValueChange={(v) => setFormatter(v as FormatterName)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ALL_FORMATTER_NAMES.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                <p className="text-gray-400 text-sm">Could not auto-detect. Select manually:</p>
-                <select
-                  value={formatter}
-                  onChange={(e) => setFormatter(e.target.value as FormatterName)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                >
-                  {ALL_FORMATTER_NAMES.map((f) => <option key={f} value={f}>{f}</option>)}
-                </select>
+              <div className="space-y-1.5">
+                <p className="text-muted-foreground text-sm">Could not auto-detect. Select manually:</p>
+                <Select value={formatter} onValueChange={(v) => setFormatter(v as FormatterName)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ALL_FORMATTER_NAMES.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
             {existingUplineCount > 0 && !duplicateConfirmed && (
-              <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-sm text-amber-800">
+              <div className="bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-700 rounded-lg px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
                 ⚠️ <strong>{existingUplineCount} records</strong> with this upline already exist in {settleId}.
                 <button
                   onClick={() => { setDuplicateConfirmed(true); }}
@@ -228,15 +242,11 @@ export default function ProcessPage() {
               </div>
             )}
 
-            {stepError && <p className="text-red-600 text-sm">{stepError}</p>}
+            {stepError && <p className="text-destructive text-sm">{stepError}</p>}
 
-            <button
-              onClick={handleParseAndPreview}
-              disabled={parseAndPreviewMutation.isPending}
-              className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
-            >
+            <Button onClick={handleParseAndPreview} disabled={parseAndPreviewMutation.isPending}>
               {parseAndPreviewMutation.isPending ? "Parsing…" : "Parse & Preview →"}
-            </button>
+            </Button>
           </div>
         )}
 
@@ -246,27 +256,29 @@ export default function ProcessPage() {
             {/* Header row */}
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-semibold text-gray-800">Step 2 — Preview</h2>
-                <p className="text-sm text-gray-500">
-                  {totalRows} rows · {previewRows.filter((r) => r.status === "ok").length} OK ·{" "}
-                  {previewRows.filter((r) => r.status === "user_missing").length} missing
+                <h2 className="font-semibold">Step 2 — Preview</h2>
+                <p className="text-sm text-muted-foreground">
+                  {totalRows} rows ·{" "}
+                  <Badge variant="secondary" className="text-green-600">{previewRows.filter((r) => r.status === "ok").length} OK</Badge>{" "}
+                  <Badge variant="secondary" className="text-amber-600">{previewRows.filter((r) => r.status === "user_missing").length} missing</Badge>
                 </p>
               </div>
               <div className="flex items-center gap-3">
                 {previewRows.some((r) => r.status === "user_missing") && (
-                  <button
+                  <Button
+                    variant={skipAllMissing ? "secondary" : "outline"}
+                    size="sm"
                     onClick={() => setSkipAllMissing(!skipAllMissing)}
-                    className={`text-sm px-3 py-1 rounded-lg border ${skipAllMissing ? "bg-gray-100 text-gray-600" : "text-amber-600 border-amber-300 hover:bg-amber-50"}`}
                   >
                     {skipAllMissing ? "⏭ Skip All (active)" : "⏭ Skip All Missing"}
-                  </button>
+                  </Button>
                 )}
-                <span className="text-sm text-gray-500">{selectedRows.size} selected</span>
+                <span className="text-sm text-muted-foreground">{selectedRows.size} selected</span>
               </div>
             </div>
 
             {existingUplineCount > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
+              <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
                 ⚠️ {existingUplineCount} existing records with this upline in {settleId}.
               </div>
             )}
@@ -277,8 +289,8 @@ export default function ProcessPage() {
                 onClick={() => setPreviewTab("original")}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   previewTab === "original"
-                    ? "border-blue-600 text-blue-700"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
                 📄 Original File
@@ -287,8 +299,8 @@ export default function ProcessPage() {
                 onClick={() => setPreviewTab("parsed")}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   previewTab === "parsed"
-                    ? "border-blue-600 text-blue-700"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
                 ✅ Parsed Result
@@ -298,123 +310,126 @@ export default function ProcessPage() {
             {/* ── Original file table ── */}
             {previewTab === "original" && (
               <div className="overflow-x-auto -mx-6">
-                <table className="w-full text-xs border-y min-w-max">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-3 py-2 text-left border-b text-gray-500 font-medium">#</th>
+                <Table className="text-xs min-w-max">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">#</TableHead>
                       {rawHeaders.map((h) => (
-                        <th key={h} className="px-3 py-2 text-left border-b text-gray-600 font-medium whitespace-nowrap">{h}</th>
+                        <TableHead key={h} className="whitespace-nowrap">{h}</TableHead>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {rawRows.map(({ rowIndex, data }) => (
-                      <tr key={rowIndex} className="border-b last:border-0 hover:bg-gray-50">
-                        <td className="px-3 py-1.5 text-gray-400 font-mono">{rowIndex + 1}</td>
+                      <TableRow key={rowIndex}>
+                        <TableCell className="font-mono text-muted-foreground">{rowIndex + 1}</TableCell>
                         {rawHeaders.map((h) => (
-                          <td key={h} className="px-3 py-1.5 font-mono whitespace-nowrap">
+                          <TableCell key={h} className="font-mono whitespace-nowrap">
                             {data[h] === null || data[h] === undefined ? "" : String(data[h])}
-                          </td>
+                          </TableCell>
                         ))}
-                      </tr>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
 
             {/* ── Parsed result table ── */}
             {previewTab === "parsed" && (
               <div className="overflow-x-auto -mx-6">
-                <table className="w-full text-xs border-y">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-3 py-2 text-left border-b">
-                        <input
-                          type="checkbox"
+                <Table className="text-xs">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
                           checked={selectedRows.size === previewRows.filter((r) => r.status === "ok").length && previewRows.some((r) => r.status === "ok")}
-                          onChange={toggleAll}
-                          className="rounded"
+                          onCheckedChange={toggleAll}
                         />
-                      </th>
-                      <th className="px-3 py-2 text-left border-b text-gray-600">#</th>
-                      <th className="px-3 py-2 text-left border-b text-gray-600">Date</th>
-                      <th className="px-3 py-2 text-left border-b text-gray-600">UserID</th>
-                      <th className="px-3 py-2 text-right border-b text-gray-600">Point</th>
-                      <th className="px-3 py-2 text-right border-b text-gray-600">AmtGross</th>
-                      <th className="px-3 py-2 text-right border-b text-gray-600">AmtComm</th>
-                      <th className="px-3 py-2 text-right border-b text-gray-600">AmtPati</th>
-                      <th className="px-3 py-2 text-right border-b text-gray-600">Amount</th>
-                      <th className="px-3 py-2 text-center border-b text-gray-600">CR/DR</th>
-                      <th className="px-3 py-2 text-center border-b text-gray-600">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                      </TableHead>
+                      <TableHead className="w-10">#</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>UserID</TableHead>
+                      <TableHead className="text-right">Point</TableHead>
+                      <TableHead className="text-right">AmtGross</TableHead>
+                      <TableHead className="text-right">AmtComm</TableHead>
+                      <TableHead className="text-right">AmtPati</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-center">CR/DR</TableHead>
+                      <TableHead className="text-center">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {previewRows.map((row) => {
                       const isMissing = row.status === "user_missing";
                       const isSkipped = row.status === "skip" || (isMissing && skipAllMissing);
                       return (
-                        <tr
+                        <TableRow
                           key={row.rowIndex}
-                          className={`border-b last:border-0 ${
-                            isSkipped ? "bg-gray-50 opacity-50"
-                            : isMissing ? "bg-yellow-50"
-                            : selectedRows.has(row.rowIndex) ? "bg-blue-50"
-                            : "hover:bg-gray-50"
-                          }`}
+                          className={
+                            isSkipped ? "opacity-40"
+                            : isMissing ? "bg-amber-50 dark:bg-amber-950/40"
+                            : selectedRows.has(row.rowIndex) ? "bg-blue-50 dark:bg-blue-950/40"
+                            : ""
+                          }
                         >
-                          <td className="px-3 py-1.5">
+                          <TableCell>
                             {row.status === "ok" && (
-                              <input type="checkbox" checked={selectedRows.has(row.rowIndex)} onChange={() => toggleRow(row.rowIndex)} className="rounded" />
+                              <Checkbox
+                                checked={selectedRows.has(row.rowIndex)}
+                                onCheckedChange={() => toggleRow(row.rowIndex)}
+                              />
                             )}
-                          </td>
-                          <td className="px-3 py-1.5 text-gray-400">{row.rowIndex + 1}</td>
-                          <td className="px-3 py-1.5 font-mono">{row.date ? format(new Date(row.date), "dd/MM/yy") : "—"}</td>
-                          <td className="px-3 py-1.5 font-mono font-semibold">{row.userid}</td>
-                          <td className="px-3 py-1.5 text-right font-mono">{row.point?.toFixed(2)}</td>
-                          <td className="px-3 py-1.5 text-right font-mono">{row.amtGross?.toFixed(2) ?? "—"}</td>
-                          <td className="px-3 py-1.5 text-right font-mono text-red-600">{row.amtComm?.toFixed(2) ?? "—"}</td>
-                          <td className="px-3 py-1.5 text-right font-mono">{row.amtPati?.toFixed(2) ?? "—"}</td>
-                          <td className="px-3 py-1.5 text-right font-mono font-bold">{row.amount?.toFixed(2) ?? "—"}</td>
-                          <td className="px-3 py-1.5 text-center font-mono">
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{row.rowIndex + 1}</TableCell>
+                          <TableCell className="font-mono">{row.date ? format(new Date(row.date), "dd/MM/yy") : "—"}</TableCell>
+                          <TableCell className="font-mono font-semibold">{row.userid}</TableCell>
+                          <TableCell className="text-right font-mono">{row.point?.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-mono">{row.amtGross?.toFixed(2) ?? "—"}</TableCell>
+                          <TableCell className="text-right font-mono text-destructive">{row.amtComm?.toFixed(2) ?? "—"}</TableCell>
+                          <TableCell className="text-right font-mono">{row.amtPati?.toFixed(2) ?? "—"}</TableCell>
+                          <TableCell className="text-right font-mono font-bold">{row.amount?.toFixed(2) ?? "—"}</TableCell>
+                          <TableCell className="text-center">
                             {row.adrcr && (
-                              <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${row.adrcr === "C" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                              <Badge variant={row.adrcr === "C" ? "secondary" : "destructive"} className={row.adrcr === "C" ? "text-green-600" : ""}>
                                 {row.adrcr}
-                              </span>
+                              </Badge>
                             )}
-                          </td>
-                          <td className="px-3 py-1.5 text-center">
+                          </TableCell>
+                          <TableCell className="text-center">
                             {isMissing && !skipAllMissing && (
-                              <button
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 text-xs px-2 text-amber-600 border-amber-300 hover:bg-amber-50"
                                 onClick={() => setAddUserFor({ userid: row.userid, upline: row.upline })}
-                                className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded hover:bg-amber-600"
                               >
                                 + Add User
-                              </button>
+                              </Button>
                             )}
                             {isMissing && row.foundInOtherUpline && (
                               <span className="text-xs text-blue-500 ml-1" title="Found in another upline">ℹ</span>
                             )}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
 
-            {stepError && <p className="text-red-600 text-sm">{stepError}</p>}
+            {stepError && <p className="text-destructive text-sm">{stepError}</p>}
 
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setStep(1)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">← Back</button>
-              <button
+              <Button variant="outline" onClick={() => setStep(1)}>← Back</Button>
+              <Button
                 onClick={handleConfirm}
                 disabled={confirmMutation.isPending || selectedRows.size === 0}
-                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 text-sm font-medium disabled:opacity-50"
+                className="bg-green-600 hover:bg-green-700 text-white"
               >
                 {confirmMutation.isPending ? "Saving…" : `✓ Confirm & Save ${selectedRows.size} Records`}
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -424,38 +439,27 @@ export default function ProcessPage() {
           <div className="text-center py-8 space-y-4">
             <div className="text-5xl">✅</div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Done!</h2>
-              <p className="text-gray-500 mt-1">
+              <h2 className="text-xl font-bold">Done!</h2>
+              <p className="text-muted-foreground mt-1">
                 <span className="font-bold text-green-600 text-2xl">{confirmMutation.data.count}</span>{" "}
                 records saved to database
               </p>
             </div>
             <div className="flex flex-wrap gap-3 justify-center pt-2">
-              <a
-                href={`/api/settlement/${settleId}/download-dbf`}
-                download={`${settleId}.DBF`}
-                className="bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 text-sm font-medium"
-              >
-                ↓ Download DBF
-              </a>
-              <Link
-                href={`/settlements/${settleId}/records`}
-                className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
-              >
-                View All Records
-              </Link>
-              <Link
-                href={`/settlements/${settleId}/upload`}
-                className="px-5 py-2 border rounded-lg text-sm hover:bg-gray-50"
-              >
-                + Upload Another File
-              </Link>
-              <Link
-                href={`/settlements/${settleId}`}
-                className="px-5 py-2 border rounded-lg text-sm hover:bg-gray-50"
-              >
-                Back to Settlement
-              </Link>
+              <Button asChild className="bg-green-600 hover:bg-green-700 text-white">
+                <a href={`/api/settlement/${settleId}/download-dbf`} download={`${settleId}.DBF`}>
+                  ↓ Download DBF
+                </a>
+              </Button>
+              <Button asChild>
+                <Link href={`/settlements/${settleId}/records`}>View All Records</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href={`/settlements/${settleId}/upload`}>+ Upload Another File</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href={`/settlements/${settleId}`}>Back to Settlement</Link>
+              </Button>
             </div>
           </div>
         )}
@@ -464,26 +468,24 @@ export default function ProcessPage() {
       {/* Duplicate warning modal */}
       {showDuplicateWarning && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
-            <h3 className="font-bold text-gray-900 mb-2">⚠️ Duplicate Records Warning</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              <strong>{existingUplineCount} record(s)</strong> with upline code &ldquo;{upload?.upline}&rdquo; already exist in{" "}
-              <strong>{settleId}</strong>. Continue and add more?
+          <div className="bg-card border rounded-xl shadow-xl max-w-sm w-full p-6">
+            <h3 className="font-bold mb-2">⚠️ Duplicate Records Warning</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              <strong className="text-foreground">{existingUplineCount} record(s)</strong> with upline code &ldquo;{upload?.upline}&rdquo; already exist in{" "}
+              <strong className="text-foreground">{settleId}</strong>. Continue and add more?
             </p>
             <div className="flex gap-3">
-              <button
+              <Button
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
                 onClick={() => {
                   setDuplicateConfirmed(true);
                   setShowDuplicateWarning(false);
                   parseAndPreviewMutation.mutate({ uploadId, formatter });
                 }}
-                className="flex-1 bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 text-sm font-medium"
               >
                 Yes, Continue
-              </button>
-              <button onClick={() => setShowDuplicateWarning(false)} className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">
-                Cancel
-              </button>
+              </Button>
+              <Button variant="outline" onClick={() => setShowDuplicateWarning(false)}>Cancel</Button>
             </div>
           </div>
         </div>

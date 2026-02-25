@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { api } from "@/lib/trpc";
 import { useToast } from "@/hooks/use-toast";
 
@@ -92,50 +93,59 @@ export function PartyMasterForm({ defaultValues, partyCode, onSuccess }: PartyMa
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div>
-        <Label htmlFor="partyCode">Party Code</Label>
-        <Input
-          id="partyCode"
-          {...register("partyCode")}
-          disabled={!!partyCode}
-          maxLength={6}
-          className="uppercase"
-          placeholder="6 alphanumeric characters"
-          pattern="[A-Z0-9]{6}"
-        />
-        {errors.partyCode && (
-          <p className="text-sm text-destructive mt-1">{errors.partyCode.message}</p>
-        )}
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="partyCode">
+            Party Code <span className="text-muted-foreground text-xs">(exactly 6 chars)</span>
+          </Label>
+          <Input
+            id="partyCode"
+            {...register("partyCode")}
+            disabled={!!partyCode}
+            maxLength={6}
+            className="uppercase font-mono"
+            placeholder="e.g. ABCD01"
+          />
+          {errors.partyCode && (
+            <p className="text-xs text-destructive">{errors.partyCode.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="partyName">
+            Party Name <span className="text-muted-foreground text-xs">(max 15)</span>
+          </Label>
+          <Input
+            id="partyName"
+            {...register("partyName")}
+            maxLength={15}
+            placeholder="Party display name"
+          />
+          {errors.partyName && (
+            <p className="text-xs text-destructive">{errors.partyName.message}</p>
+          )}
+        </div>
       </div>
 
-      <div>
-        <Label htmlFor="partyName">Party Name</Label>
-        <Input
-          id="partyName"
-          {...register("partyName")}
-          maxLength={15}
-          placeholder="Max 15 characters"
-        />
-        {errors.partyName && (
-          <p className="text-sm text-destructive mt-1">{errors.partyName.message}</p>
-        )}
-      </div>
-
-      <div>
-        <Label htmlFor="ref">Reference (Optional)</Label>
+      <div className="space-y-2">
+        <Label htmlFor="ref">
+          Reference <span className="text-muted-foreground text-xs">(optional, max 15)</span>
+        </Label>
         <Input
           id="ref"
           {...register("ref")}
           maxLength={15}
-          placeholder="Max 15 characters"
+          placeholder="Optional reference"
         />
         {errors.ref && (
-          <p className="text-sm text-destructive mt-1">{errors.ref.message}</p>
+          <p className="text-xs text-destructive">{errors.ref.message}</p>
         )}
       </div>
 
-      <Button type="submit" disabled={isSubmitting}>
+      <Separator />
+
+      <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
         {partyCode ? "Update" : "Create"} Party Master
       </Button>
     </form>

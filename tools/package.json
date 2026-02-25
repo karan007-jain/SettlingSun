@@ -9,12 +9,22 @@
     "sync:idmaster": "node dbf-sync.js sync idmaster",
     "validate:party": "node dbf-sync.js validate party",
     "validate:exch": "node dbf-sync.js validate exch",
-    "status": "node dbf-sync.js status"
+    "status": "node dbf-sync.js status",
+    "build": "node build.js"
   },
   "dependencies": {
     "dbffile": "^1.12.0",
     "axios": "^1.6.0",
     "commander": "^11.1.0",
     "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "javascript-obfuscator": "^4.1.1",
+    "@yao-pkg/pkg": "^5.12.0"
+  },
+  "pkg": {
+    "targets": ["node22-win-x64"],
+    "outputPath": "dist"
   }
 }

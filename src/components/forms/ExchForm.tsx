@@ -6,6 +6,9 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AutocompleteInput } from "./AutocompleteInput";
 import { api } from "@/lib/trpc";
 import { useToast } from "@/hooks/use-toast";
@@ -99,135 +102,130 @@ export function ExchForm({ defaultValues, id, onSuccess }: ExchFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div>
-        <Label htmlFor="idName">ID Name</Label>
-        <Input
-          id="idName"
-          {...register("idName")}
-          maxLength={15}
-          placeholder="Alphanumeric only (A-Z, 0-9)"
-          pattern="[A-Za-z0-9]+"
-        />
-        {errors.idName && (
-          <p className="text-sm text-destructive mt-1">{errors.idName.message}</p>
-        )}
-      </div>
-
-      <div>
-        <Controller
-          name="partyCode"
-          control={control}
-          render={({ field }) => (
-            <AutocompleteInput
-              label="Party Code"
-              options={partyOptions}
-              value={field.value || ""}
-              onChange={field.onChange}
-              placeholder="Select party..."
-              error={errors.partyCode?.message}
-            />
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      {/* Row 1: ID Name + Short Code */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="idName">
+            ID Name <span className="text-muted-foreground text-xs">(max 15)</span>
+          </Label>
+          <Input
+            id="idName"
+            {...register("idName")}
+            maxLength={15}
+            placeholder="Alphanumeric only"
+            className="uppercase"
+          />
+          {errors.idName && (
+            <p className="text-xs text-destructive">{errors.idName.message}</p>
           )}
-        />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="shortCode">
+            Short Code <span className="text-muted-foreground text-xs">(max 8)</span>
+          </Label>
+          <Input
+            id="shortCode"
+            {...register("shortCode")}
+            maxLength={8}
+            placeholder="e.g. CRIC01"
+            className="font-mono"
+          />
+          {errors.shortCode && (
+            <p className="text-xs text-destructive">{errors.shortCode.message}</p>
+          )}
+        </div>
       </div>
 
-      <div>
-        <Label htmlFor="shortCode">Short Code</Label>
-        <Input
-          id="shortCode"
-          {...register("shortCode")}
-          maxLength={8}
-          placeholder="Max 8 characters"
-        />
-        {errors.shortCode && (
-          <p className="text-sm text-destructive mt-1">{errors.shortCode.message}</p>
+      {/* Row 2: Party Code */}
+      <Controller
+        name="partyCode"
+        control={control}
+        render={({ field }) => (
+          <AutocompleteInput
+            label="Party Code"
+            options={partyOptions}
+            value={field.value || ""}
+            onChange={field.onChange}
+            placeholder="Select party..."
+            error={errors.partyCode?.message}
+          />
         )}
-      </div>
+      />
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
+      {/* Row 3: Rate + ID Comm */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
           <Label htmlFor="rate">Rate</Label>
-          <Input
-            id="rate"
-            type="number"
-            step="0.01"
-            {...register("rate")}
-            placeholder="0.00"
-          />
-          {errors.rate && (
-            <p className="text-sm text-destructive mt-1">{errors.rate.message}</p>
-          )}
+          <Input id="rate" type="number" step="0.01" {...register("rate")} placeholder="0.00" />
+          {errors.rate && <p className="text-xs text-destructive">{errors.rate.message}</p>}
         </div>
-
-        <div>
+        <div className="space-y-2">
           <Label htmlFor="idComm">ID Comm</Label>
-          <Input
-            id="idComm"
-            type="number"
-            step="0.01"
-            {...register("idComm")}
-            placeholder="0.00"
-          />
-          {errors.idComm && (
-            <p className="text-sm text-destructive mt-1">{errors.idComm.message}</p>
-          )}
+          <Input id="idComm" type="number" step="0.01" {...register("idComm")} placeholder="0.00" />
+          {errors.idComm && <p className="text-xs text-destructive">{errors.idComm.message}</p>}
         </div>
       </div>
 
-      <div>
-        <Controller
-          name="idAc"
-          control={control}
-          render={({ field }) => (
-            <AutocompleteInput
-              label="ID Ac"
-              options={partyOptions}
-              value={field.value || ""}
-              onChange={field.onChange}
-              placeholder="Select party..."
-              error={errors.idAc?.message}
-            />
-          )}
-        />
-      </div>
+      {/* Row 4: ID Ac */}
+      <Controller
+        name="idAc"
+        control={control}
+        render={({ field }) => (
+          <AutocompleteInput
+            label="ID Ac (Account Party)"
+            options={partyOptions}
+            value={field.value || ""}
+            onChange={field.onChange}
+            placeholder="Select party..."
+            error={errors.idAc?.message}
+          />
+        )}
+      />
 
       {/* Currency */}
-      <div>
+      <div className="space-y-2">
         <Label>Currency</Label>
-        <p className="text-xs text-gray-500 mb-1.5">
-          RUPEE: rate × 100 applied in calculations (1 rupee = 100 paisa)
-        </p>
-        <div className="flex gap-4">
-          {(["PAISA", "RUPEE"] as const).map((c) => (
-            <label key={c} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                value={c}
-                {...register("currency")}
-                className="accent-blue-600"
-              />
-              <span className="text-sm font-medium">{c}</span>
-            </label>
-          ))}
-        </div>
+        <p className="text-xs text-muted-foreground">RUPEE: rate × 100 applied in calculations</p>
+        <Controller
+          name="currency"
+          control={control}
+          render={({ field }) => (
+            <RadioGroup
+              value={field.value}
+              onValueChange={field.onChange}
+              className="flex gap-6"
+            >
+              {(["PAISA", "RUPEE"] as const).map((c) => (
+                <div key={c} className="flex items-center gap-2">
+                  <RadioGroupItem value={c} id={`currency-${c}`} />
+                  <Label htmlFor={`currency-${c}`} className="cursor-pointer font-medium">{c}</Label>
+                </div>
+              ))}
+            </RadioGroup>
+          )}
+        />
       </div>
 
+      <Separator />
+
       {/* Template */}
-      <div>
-        <Label htmlFor="template">Message Template (optional)</Label>
-        <p className="text-xs text-gray-400 mb-1">
-          Variables: <span className="font-mono">{`{userid} {upline} {partyCode} {idCode} {rate} {commission} {pati}`}</span>
+      <div className="space-y-2">
+        <Label htmlFor="template">Message Template <span className="text-muted-foreground text-xs">(optional)</span></Label>
+        <p className="text-xs text-muted-foreground font-mono">
+          {`{userid} {upline} {partyCode} {idCode} {rate} {commission} {pati}`}
         </p>
-        <textarea
+        <Textarea
           id="template"
           {...register("template")}
           rows={4}
           placeholder={`Welcome {userid}!\nExchange: {idCode}\nRate: {rate}\nUpline: {upline}`}
-          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono resize-y"
+          className="font-mono resize-y text-sm"
         />
       </div>
 
-      <Button type="submit" disabled={isSubmitting}>
+      <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
         {id ? "Update" : "Create"} Exchange
       </Button>
     </form>

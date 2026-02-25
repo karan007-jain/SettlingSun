@@ -4,24 +4,17 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { IdMasterForm } from "@/components/forms/IdMasterForm";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/PageHeader";
+import { PaginationBar } from "@/components/PaginationBar";
+import { DeleteAlertDialog } from "@/components/DeleteAlertDialog";
 import { api } from "@/lib/trpc";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, Plus, Search, ChevronLeft, ChevronRight, Check, X } from "lucide-react";
+import { Pencil, Trash2, Plus, Search } from "lucide-react";
 
 const PAGE_SIZE = 10;
 
@@ -36,21 +29,15 @@ export default function IdMasterPage() {
   const [page, setPage] = useState(1);
   const [filterActive, setFilterActive] = useState<boolean | undefined>(undefined);
   const [filterIsUpline, setFilterIsUpline] = useState<boolean | undefined>(undefined);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(1);
-    }, 300);
+    const timer = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
   const { data, isLoading } = api.idMaster.getList.useQuery({
-    page,
-    pageSize: PAGE_SIZE,
-    search: debouncedSearch || undefined,
-    filterActive,
-    filterIsUpline,
+    page, pageSize: PAGE_SIZE, search: debouncedSearch || undefined, filterActive, filterIsUpline,
   });
 
   const items = data?.items ?? [];
@@ -78,7 +65,6 @@ export default function IdMasterPage() {
       userId: id.userId,
       partyCode: id.partyCode,
       idCode: id.idCode,
-      // Stored in paisa when RUPEE — convert back to rupee units for display
       comm: Number(id.comm),
       rate: isRupee ? Number(id.rate) / 100 : Number(id.rate),
       pati: id.pati,
@@ -89,102 +75,83 @@ export default function IdMasterPage() {
     setOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this ID Master?")) {
-      deleteMutation.mutate({ id });
-    }
-  };
+  const confirmDelete = () => { if (deleteTarget) deleteMutation.mutate({ id: deleteTarget }); };
 
-  // Cycle filter: undefined -> true -> false -> undefined
-  const cycleActiveFilter = () => {
-    setFilterActive((v) => v === undefined ? true : v === true ? false : undefined);
-    setPage(1);
-  };
-  const cycleUplineFilter = () => {
-    setFilterIsUpline((v) => v === undefined ? true : v === true ? false : undefined);
-    setPage(1);
-  };
-
-  const filterLabel = (val: boolean | undefined, trueLabel: string, falseLabel: string) =>
-    val === true ? trueLabel : val === false ? falseLabel : "All";
+  const cycleActiveFilter = () => { setFilterActive((v) => v === undefined ? true : v === true ? false : undefined); setPage(1); };
+  const cycleUplineFilter = () => { setFilterIsUpline((v) => v === undefined ? true : v === true ? false : undefined); setPage(1); };
+  const filterLabel = (val: boolean | undefined, t: string, f: string) => val === true ? t : val === false ? f : "All";
+  const hasFilters = filterActive !== undefined || filterIsUpline !== undefined || !!search;
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">ID Master</h1>
-        {canWrite && (
-          <>
-            <Button onClick={() => { setEditingId(null); setOpen(true); }}>
-              <Plus className="h-4 w-4 mr-2" />
-              New ID Master
-            </Button>
-            <Dialog open={open} onOpenChange={(isOpen) => {
-              setOpen(isOpen);
-              if (!isOpen) setEditingId(null);
-            }}>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{editingId ? "Edit" : "Create"} ID Master</DialogTitle>
-                </DialogHeader>
-                <IdMasterForm
-                  defaultValues={editingId || undefined}
-                  id={editingId?.id}
-                  onSuccess={() => {
-                    setOpen(false);
-                    utils.idMaster.getList.invalidate();
-                    utils.idMaster.getUplines.invalidate();
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
-          </>
+      <PageHeader
+        title="ID Master"
+        description="Manage user IDs, uplines, and relationships"
+        action={canWrite && (
+          <Button onClick={() => { setEditingId(null); setOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" /> New ID Master
+          </Button>
         )}
-      </div>
+      />
+
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditingId(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingId ? "Edit" : "Create"} ID Master</DialogTitle>
+          </DialogHeader>
+          <IdMasterForm
+            defaultValues={editingId || undefined}
+            id={editingId?.id}
+            onSuccess={() => {
+              setOpen(false);
+              utils.idMaster.getList.invalidate();
+              utils.idMaster.getUplines.invalidate();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <DeleteAlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}
+        title="Delete ID Master"
+        description="This will permanently delete the ID Master record."
+        onConfirm={confirmDelete}
+      />
 
       {/* Search + Filters */}
       <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <div className="relative flex-1 min-w-[200px] max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search user ID, party, exchange..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 w-72"
+            className="pl-9"
           />
         </div>
-        <Button
-          variant={filterActive === undefined ? "outline" : "default"}
-          size="sm"
-          onClick={cycleActiveFilter}
-          className="min-w-[90px]"
-        >
+        <Button variant={filterActive === undefined ? "outline" : "default"} size="sm" onClick={cycleActiveFilter} className="min-w-[90px]">
           Active: {filterLabel(filterActive, "Yes", "No")}
         </Button>
-        <Button
-          variant={filterIsUpline === undefined ? "outline" : "default"}
-          size="sm"
-          onClick={cycleUplineFilter}
-          className="min-w-[100px]"
-        >
+        <Button variant={filterIsUpline === undefined ? "outline" : "default"} size="sm" onClick={cycleUplineFilter} className="min-w-[100px]">
           Upline: {filterLabel(filterIsUpline, "Yes", "No")}
         </Button>
-        {(filterActive !== undefined || filterIsUpline !== undefined || search) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { setSearch(""); setFilterActive(undefined); setFilterIsUpline(undefined); setPage(1); }}
-          >
+        {hasFilters && (
+          <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setFilterActive(undefined); setFilterIsUpline(undefined); setPage(1); }}>
             Clear filters
           </Button>
         )}
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
+      {/* Table */}
+      <div className="rounded-lg border bg-card overflow-x-auto">
         {isLoading ? (
-          <div className="p-8 text-center">Loading...</div>
+          <div className="p-4 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+          </div>
         ) : items.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            No ID Masters found. {canWrite && !search && "Create one to get started."}
+          <div className="p-10 text-center text-muted-foreground">
+            No ID Masters found.{canWrite && !search && " Create one to get started."}
           </div>
         ) : (
           <Table>
@@ -210,14 +177,18 @@ export default function IdMasterPage() {
                   <TableCell>{id.exch.idName}</TableCell>
                   <TableCell>{Number(id.comm).toFixed(2)}</TableCell>
                   <TableCell>{Number(id.rate).toFixed(2)}</TableCell>
-                  <TableCell>{id.partnerParty?.partyName || "-"}</TableCell>
+                  <TableCell className="text-muted-foreground">{id.partnerParty?.partyName || "—"}</TableCell>
                   <TableCell>
-                    {id.active ? <Check className="h-4 w-4 text-green-600" /> : <X className="h-4 w-4 text-red-600" />}
+                    <Badge variant={id.active ? "default" : "secondary"} className="text-xs">
+                      {id.active ? "Active" : "Inactive"}
+                    </Badge>
                   </TableCell>
                   <TableCell>
-                    {id.isUpline ? <Check className="h-4 w-4 text-green-600" /> : <X className="h-4 w-4 text-red-600" />}
+                    <Badge variant={id.isUpline ? "default" : "outline"} className="text-xs">
+                      {id.isUpline ? "Yes" : "No"}
+                    </Badge>
                   </TableCell>
-                  <TableCell>{id.upline?.userId || "-"}</TableCell>
+                  <TableCell className="text-muted-foreground">{id.upline?.userId || "—"}</TableCell>
                   {canWrite && (
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -225,7 +196,7 @@ export default function IdMasterPage() {
                           <Pencil className="h-4 w-4" />
                         </Button>
                         {isAdmin && (
-                          <Button variant="destructive" size="sm" onClick={() => handleDelete(id.id)}>
+                          <Button variant="destructive" size="sm" onClick={() => setDeleteTarget(id.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         )}
@@ -239,25 +210,8 @@ export default function IdMasterPage() {
         )}
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between text-sm text-gray-600">
-        <span>
-          {total === 0
-            ? "No results"
-            : `${(page - 1) * PAGE_SIZE + 1}\u2013${Math.min(page * PAGE_SIZE, total)} of ${total}`}
-        </span>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
-            <ChevronLeft className="h-4 w-4" />
-            Prev
-          </Button>
-          <span className="px-2">Page {page} of {Math.max(1, totalPages)}</span>
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
-            Next
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      <PaginationBar page={page} totalPages={totalPages} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />
     </div>
   );
 }
+

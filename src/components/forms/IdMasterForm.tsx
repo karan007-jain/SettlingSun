@@ -7,10 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AutocompleteInput } from "./AutocompleteInput";
 import { api } from "@/lib/trpc";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import { Copy, Check, ClipboardCheck } from "lucide-react";
 
 function renderTemplate(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, key) =>
@@ -197,81 +201,70 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <span className="text-green-600 text-xl">✅</span>
-          <h3 className="text-base font-bold text-gray-900">ID Master Created</h3>
-          {copied && <span className="ml-2 text-green-600 text-sm font-medium">Copied!</span>}
+          <ClipboardCheck className="h-5 w-5 text-green-600" />
+          <h3 className="text-base font-semibold">ID Master Created</h3>
+          {copied && <Badge variant="secondary" className="text-green-600">Copied!</Badge>}
         </div>
-        <div className="bg-gray-50 border rounded-lg p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-500">Generated Message</span>
-            <button
+        <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Generated Message</span>
+            <Button
               type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
               onClick={() => {
                 copyToClipboard(savedText).then(() => {
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
-                }).catch(() => {
-                  const pre = document.querySelector("pre[data-copy-idmaster]") as HTMLPreElement | null;
-                  if (pre) {
-                    const range = document.createRange();
-                    range.selectNodeContents(pre);
-                    window.getSelection()?.removeAllRanges();
-                    window.getSelection()?.addRange(range);
-                  }
-                });
+                }).catch(() => {});
               }}
-              className="text-xs bg-blue-600 text-white px-2.5 py-1 rounded hover:bg-blue-700 font-medium"
             >
-              {copied ? "✓ Copied" : "Copy"}
-            </button>
+              {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              {copied ? "Copied" : "Copy"}
+            </Button>
           </div>
-          <pre data-copy-idmaster className="text-sm font-mono whitespace-pre-wrap break-words text-gray-800 leading-relaxed">
+          <pre data-copy-idmaster className="text-sm font-mono whitespace-pre-wrap break-words leading-relaxed">
             {savedText}
           </pre>
         </div>
-        <button
+        <Button
           type="button"
+          className="w-full"
           onClick={() => {
             setSavedText(null);
             setCopied(false);
             reset();
             onSuccess?.();
           }}
-          className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 font-medium text-sm"
         >
           Done
-        </button>
+        </Button>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div>
-        <div className="flex items-center justify-between mb-1">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      {/* User ID */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
           <Label htmlFor="userId">User ID</Label>
-          {/* Point / Amount toggle — create only */}
           {!id && (
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-              <button
-                type="button"
-                onClick={() => setIsAmount(false)}
-                className={`px-2 py-0.5 rounded-md text-xs font-semibold transition-colors ${
-                  !isAmount ? "bg-white shadow text-blue-700" : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Point
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsAmount(true)}
-                className={`px-2 py-0.5 rounded-md text-xs font-semibold transition-colors ${
-                  isAmount ? "bg-white shadow text-amber-600" : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Amount
-              </button>
-            </div>
+            <RadioGroup
+              value={isAmount ? "amount" : "point"}
+              onValueChange={(v) => setIsAmount(v === "amount")}
+              className="flex gap-4"
+            >
+              <div className="flex items-center gap-1.5">
+                <RadioGroupItem value="point" id="mode-point" />
+                <Label htmlFor="mode-point" className="cursor-pointer text-xs font-semibold text-primary">Point</Label>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <RadioGroupItem value="amount" id="mode-amount" />
+                <Label htmlFor="mode-amount" className="cursor-pointer text-xs font-semibold text-amber-600">Amount</Label>
+              </div>
+            </RadioGroup>
           )}
         </div>
         <Input
@@ -279,18 +272,17 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
           {...register("userId")}
           disabled={!!id}
           maxLength={isAmount ? 14 : 15}
-          placeholder={isAmount ? "A-Z, 0-9, . (will save with *)" : "A-Z, 0-9, . and * allowed"}
-          pattern="[A-Za-z0-9.*]+"
+          placeholder={isAmount ? "Will save with * appended" : "A-Z, 0-9, . and * allowed"}
+          className="font-mono"
         />
         {isAmount && !id && (
-          <p className="text-xs text-amber-600 mt-1">Amount mode: <span className="font-mono">*</span> will be appended on save</p>
+          <p className="text-xs text-amber-600">Amount mode: <span className="font-mono">*</span> will be appended on save</p>
         )}
-        {errors.userId && (
-          <p className="text-sm text-destructive mt-1">{errors.userId.message}</p>
-        )}
+        {errors.userId && <p className="text-xs text-destructive">{errors.userId.message}</p>}
       </div>
 
-      <div>
+      {/* Party + Exchange */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Controller
           name="partyCode"
           control={control}
@@ -305,15 +297,12 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
             />
           )}
         />
-      </div>
-
-      <div>
         <Controller
           name="idCode"
           control={control}
           render={({ field }) => (
             <AutocompleteInput
-              label="ID Code"
+              label="ID Code (Exchange)"
               options={exchOptions}
               value={field.value || ""}
               onChange={field.onChange}
@@ -324,138 +313,102 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
+      {/* Credit + Comm */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
           <Label htmlFor="credit">Credit Limit</Label>
-          <Input
-            id="credit"
-            type="number"
-            step="0.01"
-            {...register("credit")}
-            placeholder="0.00"
-          />
-          {errors.credit && (
-            <p className="text-sm text-destructive mt-1">{errors.credit.message}</p>
-          )}
+          <Input id="credit" type="number" step="0.01" {...register("credit")} placeholder="0.00" />
+          {errors.credit && <p className="text-xs text-destructive">{errors.credit.message}</p>}
         </div>
-
-        <div>
+        <div className="space-y-2">
           <Label htmlFor="comm">Commission</Label>
-          <Input
-            id="comm"
-            type="number"
-            step="0.01"
-            {...register("comm")}
-            placeholder="0.00"
-          />
-          {errors.comm && (
-            <p className="text-sm text-destructive mt-1">{errors.comm.message}</p>
-          )}
+          <Input id="comm" type="number" step="0.01" {...register("comm")} placeholder="0.00" />
+          {errors.comm && <p className="text-xs text-destructive">{errors.comm.message}</p>}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <div className="flex items-center justify-between mb-1">
+      {/* Rate + Pati */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
             <Label htmlFor="rate">Rate</Label>
-            {currency !== "PAISA" && (
-              <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-amber-100 text-amber-700">{currency}</span>
+            {currency === "RUPEE" && (
+              <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs py-0">
+                RUPEE
+              </Badge>
             )}
           </div>
-          <Input
-            id="rate"
-            type="number"
-            step="0.01"
-            {...register("rate")}
-            placeholder="0.00"
-          />
-          {errors.rate && (
-            <p className="text-sm text-destructive mt-1">{errors.rate.message}</p>
-          )}
+          <Input id="rate" type="number" step="0.01" {...register("rate")} placeholder="0.00" />
+          {errors.rate && <p className="text-xs text-destructive">{errors.rate.message}</p>}
         </div>
-
-        <div>
-          <Label htmlFor="pati">Pati (Numeric)</Label>
-          <Input
-            id="pati"
-            type="number"
-            step="0.01"
-            {...register("pati")}
-            placeholder="Optional"
-          />
-          {errors.pati && (
-            <p className="text-sm text-destructive mt-1">{errors.pati.message}</p>
-          )}
+        <div className="space-y-2">
+          <Label htmlFor="pati">Pati <span className="text-muted-foreground text-xs">(optional)</span></Label>
+          <Input id="pati" type="number" step="0.01" {...register("pati")} placeholder="Optional" />
+          {errors.pati && <p className="text-xs text-destructive">{errors.pati.message}</p>}
         </div>
       </div>
 
-      <div>
-        <Controller
-          name="partner"
-          control={control}
-          render={({ field }) => (
-            <AutocompleteInput
-              label="Partner (Party)"
-              options={partyOptions}
-              value={field.value || ""}
-              onChange={field.onChange}
-              placeholder="Select partner party (optional)..."
-              error={errors.partner?.message}
-            />
-          )}
-        />
-      </div>
+      {/* Partner */}
+      <Controller
+        name="partner"
+        control={control}
+        render={({ field }) => (
+          <AutocompleteInput
+            label="Partner Party (optional)"
+            options={partyOptions}
+            value={field.value || ""}
+            onChange={field.onChange}
+            placeholder="Select partner party..."
+            error={errors.partner?.message}
+          />
+        )}
+      />
 
-      <div className="flex items-center space-x-2">
+      {/* Active + Upline flags */}
+      <div className="flex flex-wrap gap-6">
         <Controller
           name="active"
           control={control}
           render={({ field }) => (
-            <Checkbox
-              id="active"
-              checked={field.value}
-              onCheckedChange={field.onChange}
-            />
+            <div className="flex items-center gap-2">
+              <Checkbox id="active" checked={field.value} onCheckedChange={field.onChange} />
+              <Label htmlFor="active" className="cursor-pointer">Active</Label>
+            </div>
           )}
         />
-        <Label htmlFor="active">Active</Label>
-      </div>
-
-      <div className="flex items-center space-x-2">
         <Controller
           name="isUpline"
           control={control}
           render={({ field }) => (
-            <Checkbox
-              id="isUpline"
-              checked={field.value}
-              onCheckedChange={field.onChange}
+            <div className="flex items-center gap-2">
+              <Checkbox id="isUpline" checked={field.value} onCheckedChange={field.onChange} />
+              <Label htmlFor="isUpline" className="cursor-pointer">Is Upline</Label>
+            </div>
+          )}
+        />
+      </div>
+
+      {/* Upline ID — only when not an upline */}
+      {showUplineId && (
+        <Controller
+          name="uplineId"
+          control={control}
+          render={({ field }) => (
+            <AutocompleteInput
+              label="Upline ID"
+              options={uplineOptions}
+              value={field.value || ""}
+              onChange={field.onChange}
+              placeholder="Select upline..."
+              error={errors.uplineId?.message}
             />
           )}
         />
-        <Label htmlFor="isUpline">Is Upline</Label>
-      </div>
-
-      {showUplineId && (
-        <div>
-          <Controller
-            name="uplineId"
-            control={control}
-            render={({ field }) => (
-              <AutocompleteInput
-                label="Upline ID"
-                options={uplineOptions}
-                value={field.value || ""}
-                onChange={field.onChange}
-                placeholder="Select upline..."
-                error={errors.uplineId?.message}
-              />
-            )}
-          />
-        </div>
       )}
 
-      <Button type="submit" disabled={isSubmitting}>
+      <Separator />
+
+      <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
         {id ? "Update" : "Create"} ID Master
       </Button>
     </form>

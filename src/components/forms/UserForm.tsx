@@ -1,13 +1,23 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { api } from "@/lib/trpc";
 import { useToast } from "@/hooks/use-toast";
+import { Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
 
 const userSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -26,10 +36,12 @@ interface UserFormProps {
 export function UserForm({ defaultValues, userId, onSuccess }: UserFormProps) {
   const { toast } = useToast();
   const utils = api.useUtils();
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<UserFormData>({
@@ -113,52 +125,69 @@ export function UserForm({ defaultValues, userId, onSuccess }: UserFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
           type="email"
+          autoComplete="email"
           {...register("email")}
           placeholder="user@example.com"
         />
-        {errors.email && (
-          <p className="text-sm text-destructive mt-1">{errors.email.message}</p>
-        )}
+        {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
       </div>
 
-      <div>
+      <div className="space-y-2">
         <Label htmlFor="password">
-          Password {userId && "(leave blank to keep unchanged)"}
+          Password{" "}
+          {userId && <span className="text-muted-foreground text-xs">(leave blank to keep unchanged)</span>}
         </Label>
-        <Input
-          id="password"
-          type="password"
-          {...register("password")}
-          placeholder={userId ? "Leave blank to keep current" : "Minimum 6 characters"}
+        <div className="relative">
+          <Input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete={userId ? "new-password" : "new-password"}
+            {...register("password")}
+            placeholder={userId ? "Leave blank to keep current" : "Minimum 6 characters"}
+            className="pr-10"
+          />
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+        {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+      </div>
+
+      <div className="space-y-2">
+        <Label>Role</Label>
+        <Controller
+          name="role"
+          control={control}
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="USER">User</SelectItem>
+                <SelectItem value="MANAGER">Manager</SelectItem>
+                <SelectItem value="ADMIN">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         />
-        {errors.password && (
-          <p className="text-sm text-destructive mt-1">{errors.password.message}</p>
-        )}
+        {errors.role && <p className="text-xs text-destructive">{errors.role.message}</p>}
       </div>
 
-      <div>
-        <Label htmlFor="role">Role</Label>
-        <select
-          id="role"
-          {...register("role")}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <option value="USER">User</option>
-          <option value="MANAGER">Manager</option>
-          <option value="ADMIN">Admin</option>
-        </select>
-        {errors.role && (
-          <p className="text-sm text-destructive mt-1">{errors.role.message}</p>
-        )}
-      </div>
+      <Separator />
 
-      <Button type="submit" disabled={isSubmitting}>
+      <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
         {userId ? "Update" : "Create"} User
       </Button>
     </form>
