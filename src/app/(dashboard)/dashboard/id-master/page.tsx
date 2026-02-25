@@ -72,13 +72,15 @@ export default function IdMasterPage() {
   const canWrite = !!session?.user;
 
   const handleEdit = (id: any) => {
+    const isRupee = id.exch?.currency === "RUPEE";
     setEditingId({
       id: id.id,
       userId: id.userId,
       partyCode: id.partyCode,
       idCode: id.idCode,
+      // Stored in paisa when RUPEE — convert back to rupee units for display
       comm: Number(id.comm),
-      rate: Number(id.rate),
+      rate: isRupee ? Number(id.rate) / 100 : Number(id.rate),
       pati: id.pati,
       active: id.active,
       isUpline: id.isUpline,

@@ -66,11 +66,13 @@ export function AddUserModal({ userid, upline, idCode, onSave, onCancel }: AddUs
     { enabled: !!idCode }
   );
 
-  // Auto-fill RATE and COMMISSION from the item defined by the upload's idCode
+  const currency: "PAISA" | "RUPEE" = ((item as any)?.currency as "PAISA" | "RUPEE") ?? "PAISA";
+
+  // Auto-fill RATE and COMMISSION from the item — divide by 100 for RUPEE (stored as paisa)
   useEffect(() => {
     if (item) {
-      setRate(Number(item.rate));
-      setCommission(Number(item.idComm));
+      const isRupee = (item as any).currency === "RUPEE";
+      setRate(isRupee ? Number(item.rate) / 100 : Number(item.rate));
     }
   }, [item]);
 
@@ -101,7 +103,10 @@ export function AddUserModal({ userid, upline, idCode, onSave, onCancel }: AddUs
     setError("");
     if (!partyCode) { setError("PCODE is required"); return; }
     if (!idCode) { setError("Exchange (IDNAME) not available — cannot add user"); return; }
-    addUserMutation.mutate({ userid: effectiveUserid, upline, partyCode, idCode, rate, commission, partner, pati });
+    // Multiply back to paisa for RUPEE exchanges before storing
+    const storeRate = currency === "RUPEE" ? rate * 100 : rate;
+
+    addUserMutation.mutate({ userid: effectiveUserid, upline, partyCode, idCode, rate: storeRate, commission, partner, pati });
   };
 
   const handleCopy = () => {
@@ -256,7 +261,12 @@ export function AddUserModal({ userid, upline, idCode, onSave, onCancel }: AddUs
           {/* RATE & COMMISSION — auto-filled from idCode */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">RATE</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium text-gray-600">RATE</label>
+                {currency !== "PAISA" && (
+                  <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-amber-100 text-amber-700">{currency}</span>
+                )}
+              </div>
               <input
                 type="number" step="0.01" value={rate}
                 onChange={(e) => setRate(parseFloat(e.target.value) || 0)}

@@ -110,6 +110,11 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
   });
 
   const isUplineValue = watch("isUpline");
+  const idCodeValue = watch("idCode");
+
+  // Derive currency from the selected exchange
+  const selectedExch = (exchanges as any[]).find((e: any) => e.idName === idCodeValue);
+  const currency: "PAISA" | "RUPEE" = selectedExch?.currency ?? "PAISA";
 
   useEffect(() => {
     setShowUplineId(!isUplineValue);
@@ -170,9 +175,13 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
     const userId = !id && isAmount && !data.userId.endsWith("*")
       ? data.userId + "*"
       : data.userId;
+    // Multiply rate/comm by 100 for RUPEE exchanges (store in paisa units)
+    const rateVal = currency === "RUPEE" ? data.rate * 100 : data.rate;
+   
     const submitData = {
       ...data,
       userId,
+      rate: rateVal,
       uplineId: data.isUpline ? null : data.uplineId,
     };
 
@@ -347,7 +356,12 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="rate">Rate</Label>
+          <div className="flex items-center justify-between mb-1">
+            <Label htmlFor="rate">Rate</Label>
+            {currency !== "PAISA" && (
+              <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-amber-100 text-amber-700">{currency}</span>
+            )}
+          </div>
           <Input
             id="rate"
             type="number"
