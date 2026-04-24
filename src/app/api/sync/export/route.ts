@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { getUserFriendlyErrorMessage } from "@/lib/api-error";
+
+const exportRequestSchema = z.object({
+  entity: z.enum(["party", "exch", "idmaster"]),
+  modifiedSince: z.string().optional(),
+});
 
 function checkApiKey(request: NextRequest): boolean {
   const apiKey = request.headers.get("x-sync-api-key");
@@ -24,14 +31,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { entity, modifiedSince } = body;
-
-    if (!entity) {
+    const parsed = exportRequestSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid request. Expected { entity, modifiedSince? }" },
+        {
+          error: "Invalid request payload",
+          details: parsed.error.flatten(),
+        },
         { status: 400 }
       );
     }
+
+    const { entity, modifiedSince } = parsed.data;
 
     const sinceDate = modifiedSince ? new Date(modifiedSince) : null;
     const whereClause = sinceDate ? { updatedAt: { gte: sinceDate } } : {};
@@ -93,7 +104,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("Export error:", error);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: getUserFriendlyErrorMessage(error) },
       { status: 500 }
     );
   }

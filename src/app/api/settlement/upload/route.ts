@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+import { getUserFriendlyErrorMessage } from "@/lib/api-error";
+
+const uploadFieldsSchema = z.object({
+  settleId: z.string().min(1, "settleId is required"),
+  exch: z.string().min(1, "exch is required"),
+  upline: z.string().min(1, "upline is required"),
+});
 
 export async function POST(request: NextRequest) {
   // Auth check
@@ -17,20 +25,26 @@ export async function POST(request: NextRequest) {
     const exch = formData.get("exch") as string | null;
     const upline = formData.get("upline") as string | null;
 
-    if (!file || !settleId || !exch || !upline) {
+    const fieldValidation = uploadFieldsSchema.safeParse({ settleId, exch, upline });
+    if (!file || !fieldValidation.success) {
       return NextResponse.json(
-        { error: "Missing required fields: file, settleId, exch, upline" },
+        {
+          error: "Missing or invalid required fields",
+          details: fieldValidation.success ? undefined : fieldValidation.error.flatten(),
+        },
         { status: 400 }
       );
     }
 
+    const fields = fieldValidation.data;
+
     // Validate settlement exists
     const settlement = await prisma.settlement.findUnique({
-      where: { settleId },
+      where: { settleId: fields.settleId },
     });
     if (!settlement) {
       return NextResponse.json(
-        { error: `Settlement ${settleId} not found` },
+        { error: `Settlement ${fields.settleId} not found` },
         { status: 404 }
       );
     }
@@ -42,9 +56,9 @@ export async function POST(request: NextRequest) {
     const upload = await prisma.settlementUpload.create({
       data: {
         settlementId: settlement.id,
-        settleId,
-        exch,
-        upline,
+        settleId: fields.settleId,
+        exch: fields.exch,
+        upline: fields.upline,
         filename: file.name,
         fileData,
         status: "uploaded",
@@ -55,7 +69,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("Upload error:", err);
     return NextResponse.json(
-      { error: "Upload failed: " + String(err) },
+      { error: getUserFriendlyErrorMessage(err) },
       { status: 500 }
     );
   }

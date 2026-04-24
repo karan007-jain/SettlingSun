@@ -25,6 +25,7 @@ const exchSchema = z.object({
   idAc: z.string().min(1, "ID Ac is required").max(6),
   currency: z.enum(["PAISA", "RUPEE"]).default("PAISA"),
   template: z.string().optional(),
+  template2: z.string().optional(),
 });
 
 type ExchFormData = z.infer<typeof exchSchema>;
@@ -228,6 +229,21 @@ export function ExchForm({ defaultValues, id, onSuccess }: ExchFormProps) {
           {...register("template")}
           rows={4}
           placeholder={`Welcome {userid}!\nExchange: {idCode}\nRate: {rate}\nUpline: {upline}`}
+          className="font-mono resize-y text-sm"
+        />
+      </div>
+
+      {/* Template 2 */}
+      <div className="space-y-2">
+        <Label htmlFor="template2">Message Template 2 <span className="text-muted-foreground text-xs">(optional)</span></Label>
+        <p className="text-xs text-muted-foreground font-mono">
+          {`{userid} {upline} {partyCode} {idCode} {rate} {commission} {pati}`}
+        </p>
+        <Textarea
+          id="template2"
+          {...register("template2")}
+          rows={4}
+          placeholder={`Backup message for {userid}\nExchange: {idCode}\nRate: {rate}`}
           className="font-mono resize-y text-sm"
         />
       </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { getUserFriendlyErrorMessage } from "@/lib/api-error";
 
 // Validation schemas
 const partySchema = z.object({
@@ -32,6 +33,11 @@ const idMasterSchema = z.object({
   uplineId: z.string().max(15).optional().nullable(),
 });
 
+const validateRequestSchema = z.object({
+  entity: z.enum(["party", "exch", "idmaster"]),
+  data: z.array(z.unknown()),
+});
+
 function checkApiKey(request: NextRequest): boolean {
   const apiKey = request.headers.get("x-sync-api-key");
   const expectedKey = process.env.SYNC_API_KEY;
@@ -55,21 +61,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { entity, data } = body;
-
-    if (!entity || !data || !Array.isArray(data)) {
+    const parsed = validateRequestSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid request. Expected { entity, data: [] }" },
+        {
+          error: "Invalid request payload",
+          details: parsed.error.flatten(),
+        },
         { status: 400 }
       );
     }
 
-    if (!["party", "exch", "idmaster"].includes(entity)) {
-      return NextResponse.json(
-        { error: `Unknown entity: ${entity}` },
-        { status: 400 }
-      );
-    }
+    const { entity, data } = parsed.data;
 
     const valid: any[] = [];
     const invalid: any[] = [];
@@ -159,7 +162,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("Validation error:", error);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: getUserFriendlyErrorMessage(error) },
       { status: 500 }
     );
   }

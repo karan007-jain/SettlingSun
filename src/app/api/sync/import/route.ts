@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { getUserFriendlyErrorMessage } from "@/lib/api-error";
 
 // Sync strategies
 const SyncStrategy = z.enum(["UPSERT", "REPLACE", "INSERT_ONLY"]);
@@ -35,6 +36,21 @@ const idMasterSchema = z.object({
   uplineId: z.string().max(15).optional().nullable(),
 });
 
+const importRequestSchema = z.object({
+  entity: z.enum(["party", "exch", "idmaster"]),
+  data: z.array(z.unknown()),
+  strategy: SyncStrategy.optional().default("UPSERT"),
+  matchBy: z.string().optional(),
+});
+
+function getRecordField(record: unknown, field: string): string {
+  if (record && typeof record === "object" && field in record) {
+    const value = (record as Record<string, unknown>)[field];
+    return value == null ? "unknown" : String(value);
+  }
+  return "unknown";
+}
+
 function checkApiKey(request: NextRequest): boolean {
   const apiKey = request.headers.get("x-sync-api-key");
   const expectedKey = process.env.SYNC_API_KEY;
@@ -58,16 +74,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { entity, data, strategy = "UPSERT", matchBy } = body;
-
-    if (!entity || !data || !Array.isArray(data)) {
+    const parsed = importRequestSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid request. Expected { entity, data: [], strategy?, matchBy? }" },
+        {
+          error: "Invalid request payload",
+          details: parsed.error.flatten(),
+        },
         { status: 400 }
       );
     }
 
-    const validStrategy = SyncStrategy.parse(strategy);
+    const { entity, data, strategy: validStrategy, matchBy } = parsed.data;
 
     let created = 0;
     let updated = 0;
@@ -116,7 +134,7 @@ export async function POST(request: NextRequest) {
           }
         } catch (error: any) {
           failed++;
-          errors.push(`Party ${record.partyCode}: ${error.message}`);
+          errors.push(`Party ${getRecordField(record, "partyCode")}: ${getUserFriendlyErrorMessage(error)}`);
         }
       }
     } else if (entity === "exch") {
@@ -156,7 +174,7 @@ export async function POST(request: NextRequest) {
           }
         } catch (error: any) {
           failed++;
-          errors.push(`Exch ${record.idName}: ${error.message}`);
+          errors.push(`Exch ${getRecordField(record, "idName")}: ${getUserFriendlyErrorMessage(error)}`);
         }
       }
     } else if (entity === "idmaster") {
@@ -208,7 +226,7 @@ export async function POST(request: NextRequest) {
           }
         } catch (error: any) {
           failed++;
-          errors.push(`IdMaster ${record.userId}: ${error.message}`);
+          errors.push(`IdMaster ${getRecordField(record, "userId")}: ${getUserFriendlyErrorMessage(error)}`);
         }
       }
     } else {
@@ -227,7 +245,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("Import error:", error);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: getUserFriendlyErrorMessage(error) },
       { status: 500 }
     );
   }

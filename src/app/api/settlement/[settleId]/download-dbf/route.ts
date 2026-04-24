@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getUserFriendlyErrorMessage } from "@/lib/api-error";
 import path from "path";
 import fs from "fs";
 import os from "os";
@@ -39,31 +40,32 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ settleId: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { settleId } = await params;
-
-  // Load all settlement records from DB
-  const rows = await prisma.settlementRecord.findMany({
-    where: { settleId },
-    orderBy: { createdAt: "asc" },
-  });
-
-  if (rows.length === 0) {
-    return NextResponse.json(
-      { error: "No records found for this settlement" },
-      { status: 404 }
-    );
-  }
-
-  // Write to a temp DBF file
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "setl-"));
-  const tmpFile = path.join(tmpDir, `${settleId}.DBF`);
-
+  let tmpDir: string | null = null;
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { settleId } = await params;
+
+    // Load all settlement records from DB
+    const rows = await prisma.settlementRecord.findMany({
+      where: { settleId },
+      orderBy: { createdAt: "asc" },
+    });
+
+    if (rows.length === 0) {
+      return NextResponse.json(
+        { error: "No records found for this settlement" },
+        { status: 404 }
+      );
+    }
+
+    // Write to a temp DBF file
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "setl-"));
+    const tmpFile = path.join(tmpDir, `${settleId}.DBF`);
+
     const dbf = await DBFFile.create(tmpFile, SETL_FIELDS);
 
     const records = rows.map((r) => ({
@@ -105,12 +107,16 @@ export async function GET(
         "Content-Length": String(fileBuffer.length),
       },
     });
+  } catch (error) {
+    return NextResponse.json({ error: getUserFriendlyErrorMessage(error) }, { status: 500 });
   } finally {
     // Clean up temp files
-    try {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    } catch {
-      // ignore cleanup errors
+    if (tmpDir) {
+      try {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      } catch {
+        // ignore cleanup errors
+      }
     }
   }
 }

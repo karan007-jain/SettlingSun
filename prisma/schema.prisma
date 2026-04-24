@@ -50,6 +50,7 @@ model Exch {
   idAc      String   @db.VarChar(10)
   currency  String   @default("PAISA") @db.VarChar(5)
   template  String?  @db.Text
+  template2 String?  @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

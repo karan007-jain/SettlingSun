@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUserFriendlyErrorMessage } from "@/lib/api-error";
 
 function checkApiKey(request: NextRequest): boolean {
   const apiKey = request.headers.get("x-sync-api-key");
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error("Status error:", error);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: getUserFriendlyErrorMessage(error) },
       { status: 500 }
     );
   }

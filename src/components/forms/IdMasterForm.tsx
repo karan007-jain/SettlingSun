@@ -16,6 +16,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { Copy, Check, ClipboardCheck } from "lucide-react";
 
+type UplineOption = {
+  id: string;
+  userId: string;
+  idCode: string;
+};
+
 function renderTemplate(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, key) =>
     vars[key] !== undefined ? String(vars[key]) : `{${key}}`
@@ -74,8 +80,8 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
   );
 
   // Template copy state
-  const [savedText, setSavedText] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [generatedMessages, setGeneratedMessages] = useState<string[] | null>(null);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   // Store last submitted data for template rendering
 
   // Per-field search state — lean server-filtered queries instead of getAll/getAll(with joins).
@@ -91,19 +97,14 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
     api.exch.listOptions.useQuery({ search: exchSearch });
   const { data: partnerOptions = [], isFetching: partnerLoading } =
     api.partyMaster.listOptions.useQuery({ search: partnerSearch });
-  const { data: uplines = [], isFetching: uplineLoading } =
-    api.idMaster.getUplines.useQuery({ search: uplineSearch });
-
-  const uplineOptions = uplines.map((u: any) => ({
-    value: u.userId,
-    label: u.userId,
-  }));
 
   const {
     register,
     handleSubmit,
     control,
     watch,
+    setValue,
+    getValues,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<IdMasterFormData>({
@@ -118,6 +119,16 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
   const isUplineValue = watch("isUpline");
   const idCodeValue = watch("idCode");
 
+  const { data: uplines = [], isFetching: uplineLoading } =
+    api.idMaster.getUplines.useQuery({ search: uplineSearch, idCode: idCodeValue || undefined });
+
+  const uplineOptions = (uplines as UplineOption[]).map((u) => ({
+    value: u.userId,
+    label: u.userId,
+  }));
+
+  const uplinesByUserId = new Map((uplines as UplineOption[]).map((u) => [u.userId, u]));
+
   // Derive currency from the selected exchange — lean single-field query
   const { data: selectedExch } = api.exch.getByIdName.useQuery(
     { idName: idCodeValue ?? "" },
@@ -129,6 +140,13 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
     setShowUplineId(!isUplineValue);
   }, [isUplineValue]);
 
+  useEffect(() => {
+    if (isUplineValue) {
+      setValue("uplineId", null);
+      setUplineSearch("");
+    }
+  }, [isUplineValue, setValue]);
+
   const createMutation = api.idMaster.create.useMutation({
     onSuccess: (data) => {
       utils.idMaster.getAll.invalidate();
@@ -137,18 +155,27 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
       // Check if the selected exchange has a template
       const submitted = data;
 
-      if (submitted.exch.template?.trim() && submitted) {
-        const text = renderTemplate(submitted.exch.template, {
-          userid: submitted.userId.replace(/[.*]/g, ""),
-          upline: submitted.uplineId ?? "",
-          partyCode: submitted.partyCode,
-          idCode: submitted.idCode,
-          rate: submitted.exch.currency === "RUPEE" ?  Number(submitted.rate) /100 : Number(submitted.rate),
-          commission: Number(submitted.comm),
-          pati: Number(submitted.pati) ?? 0,
-        });
-        setSavedText(text);
-        copyToClipboard(text).then(() => setCopied(true)).catch(() => {});
+      const templateVars = {
+        userid: submitted.userId.replace(/[.*]/g, ""),
+        upline: submitted.uplineId ?? "",
+        partyCode: submitted.partyCode,
+        idCode: submitted.idCode,
+        rate: submitted.exch.currency === "RUPEE" ? Number(submitted.rate) / 100 : Number(submitted.rate),
+        commission: Number(submitted.comm),
+        pati: Number(submitted.pati) ?? 0,
+      };
+
+      const templateList = [
+        submitted.exch.template,
+        (submitted.exch as any).template2 as string | undefined,
+      ].filter((t): t is string => !!t?.trim());
+
+      if (templateList.length > 0 && submitted) {
+        const renderedMessages = templateList.map((tpl) => renderTemplate(tpl, templateVars));
+        setGeneratedMessages(renderedMessages);
+        copyToClipboard(renderedMessages[0])
+          .then(() => setCopiedIndex(0))
+          .catch(() => {});
       } else {
         toast({ title: "Success", description: "ID Master created successfully" });
         reset();
@@ -202,43 +229,51 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
   };
 
   // ── Post-save: generated template view ───────────────────────────────────
-  if (savedText !== null) {
+  if (generatedMessages !== null) {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <ClipboardCheck className="h-5 w-5 text-green-600" />
           <h3 className="text-base font-semibold">ID Master Created</h3>
-          {copied && <Badge variant="secondary" className="text-green-600">Copied!</Badge>}
+          {copiedIndex !== null && <Badge variant="secondary" className="text-green-600">Copied!</Badge>}
         </div>
-        <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Generated Message</span>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="gap-1.5"
-              onClick={() => {
-                copyToClipboard(savedText).then(() => {
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }).catch(() => {});
-              }}
-            >
-              {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-              {copied ? "Copied" : "Copy"}
-            </Button>
-          </div>
-          <pre data-copy-idmaster className="text-sm font-mono whitespace-pre-wrap break-words leading-relaxed">
-            {savedText}
-          </pre>
+        <div className="space-y-3">
+          {generatedMessages.map((message, index) => (
+            <div key={index} className="rounded-lg border bg-muted/40 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Generated Message {generatedMessages.length > 1 ? index + 1 : ""}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => {
+                    copyToClipboard(message)
+                      .then(() => {
+                        setCopiedIndex(index);
+                        setTimeout(() => setCopiedIndex(null), 2000);
+                      })
+                      .catch(() => {});
+                  }}
+                >
+                  {copiedIndex === index ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                  {copiedIndex === index ? "Copied" : "Copy"}
+                </Button>
+              </div>
+              <pre data-copy-idmaster className="text-sm font-mono whitespace-pre-wrap break-words leading-relaxed">
+                {message}
+              </pre>
+            </div>
+          ))}
         </div>
         <Button
           type="button"
           className="w-full"
           onClick={() => {
-            setSavedText(null);
-            setCopied(false);
+            setGeneratedMessages(null);
+            setCopiedIndex(null);
             reset();
             onSuccess?.();
           }}
@@ -312,7 +347,15 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
               label="ID Code (Exchange)"
               options={exchOptions}
               value={field.value || ""}
-              onChange={field.onChange}
+              onChange={(value) => {
+                const previous = getValues("idCode") || "";
+                field.onChange(value);
+                if (value !== previous && !getValues("isUpline")) {
+                  // Exchange changed: reset upline selection to force valid upline from this exchange.
+                  setValue("uplineId", null);
+                  setUplineSearch("");
+                }
+              }}
               onSearch={setExchSearch}
               isLoading={exchLoading}
               placeholder="Select exchange..."
@@ -409,10 +452,19 @@ export function IdMasterForm({ defaultValues, id, onSuccess }: IdMasterFormProps
               label="Upline ID"
               options={uplineOptions}
               value={field.value || ""}
-              onChange={field.onChange}
+              onChange={(value) => {
+                field.onChange(value);
+                if (!value) return;
+                const selectedUpline = uplinesByUserId.get(value);
+                if (selectedUpline?.idCode) {
+                  // Selecting upline should auto-fill exchange based on selected upline's exchange.
+                  setValue("idCode", selectedUpline.idCode, { shouldValidate: true, shouldDirty: true });
+                  setExchSearch(selectedUpline.idCode);
+                }
+              }}
               onSearch={setUplineSearch}
               isLoading={uplineLoading}
-              placeholder="Select upline..."
+              placeholder={idCodeValue ? "Select upline for selected exchange..." : "Select exchange first or pick upline to auto-fill exchange..."}
               error={errors.uplineId?.message}
             />
           )}

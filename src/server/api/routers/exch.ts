@@ -15,6 +15,7 @@ const exchSchema = z.object({
   idAc: z.string().max(6),
   currency: z.enum(["PAISA", "RUPEE"]).default("PAISA"),
   template: z.string().optional().nullable(),
+  template2: z.string().optional().nullable(),
 });
 
 export const exchRouter = createTRPCRouter({
@@ -121,6 +122,7 @@ export const exchRouter = createTRPCRouter({
           idAc: input.idAc,
           currency: input.currency,
           template: input.template ?? null,
+          template2: input.template2 ?? null,
         },
         include: {
           party: true,

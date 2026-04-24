@@ -71,17 +71,25 @@ export const idMasterRouter = createTRPCRouter({
     }),
 
   getUplines: protectedProcedure
-    .input(z.object({ search: z.string().optional() }).optional())
+    .input(
+      z
+        .object({
+          search: z.string().optional(),
+          idCode: z.string().optional(),
+        })
+        .optional()
+    )
     .query(async ({ ctx, input }) => {
       const where = {
         isUpline: true,
+        ...(input?.idCode ? { idCode: input.idCode } : {}),
         ...(input?.search
           ? { userId: { contains: input.search, mode: "insensitive" as const } }
           : {}),
       };
       return await ctx.prisma.idMaster.findMany({
         where,
-        select: { userId: true, id: true },
+        select: { userId: true, id: true, idCode: true },
         take: 50,
         orderBy: { userId: "asc" },
       });
